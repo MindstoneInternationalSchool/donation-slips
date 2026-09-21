@@ -254,6 +254,10 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
           <span class="ic" style="background:#ffe9bd"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#6b4a06"><path d="M4 9.5h16v10H4z"/><path d="M3 5.5h18v4H3zM12 5.5v14"/><path d="M12 5.5c-2.5-3.5-6-1-4 1M12 5.5c2.5-3.5 6-1 4 1"/></svg></span>
           <span class="txt"><span class="t">Invitee pass</span><span class="s">Free entry for a guest, performer or the press. No payment, no receipt.</span></span>
         </button>
+        <button type="button" data-start="group" id="pickGroup" style="display:none">
+          <span class="ic" style="background:#dce9f5"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#12294a" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15 19a4.4 4.4 0 0 1 5.5-3.4"/></svg></span>
+          <span class="txt"><span class="t">College group</span><span class="s">Upload the student list, one lump-sum receipt, one pass the gate ticks names off.</span></span>
+        </button>
       </div>
 
       <div style="display:flex;align-items:baseline;justify-content:space-between">
@@ -377,7 +381,7 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
     <section class="view" id="v-comp">
       <button class="btn-quiet" data-go="home" type="button">← Back</button>
       <h1 style="font-size:24px;color:var(--navy)">Invitee pass</h1>
-      <div class="note sand">Free entry. No amount, no receipt, no certificate — a pass with a QR the gate honours. Issued the moment you save it.</div>
+      <div class="note sand">Free entry, no receipt. A pass with a QR the gate honours, issued the moment you save it — and you can send it straight to them on WhatsApp.</div>
       <div class="field">
         <label>Name on the pass</label>
         <input class="input" id="cName" placeholder="Who it is for" autocomplete="off">
@@ -390,11 +394,67 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
         <label>People it admits</label>
         <div class="step"><button type="button" id="cMinus">−</button><span id="cNum">1</span><button type="button" id="cPlus">+</button></div>
       </div>
-      <div class="field">
-        <label>Invited by</label>
-        <input class="input" id="cBy" placeholder="Who invited them" autocomplete="off">
+      <div class="field" id="cOtherField" style="display:none">
+        <label>In what way did they help?</label>
+        <input class="input" id="cOther" placeholder="e.g. Arranged the sound system" autocomplete="off">
+      </div>
+      <div class="two">
+        <div class="field"><label>Invited by</label>
+          <input class="input" id="cBy" placeholder="Who invited them" autocomplete="off"></div>
+        <div class="field"><label>Phone (for WhatsApp)</label>
+          <input class="input" id="cPhone" inputmode="tel" placeholder="98xxxxxxxx" autocomplete="off"></div>
       </div>
       <button class="btn btn-primary" id="cSave" type="button">Issue the pass</button>
+    </section>
+
+    <!-- COLLEGE GROUP -->
+    <section class="view" id="v-group">
+      <button class="btn-quiet" data-go="home" type="button">← Back</button>
+      <h1 style="font-size:24px;color:var(--navy)">College group</h1>
+      <div class="note sand">One payment from the college, one pass. At the gate each student is found by name or roll number and ticked in once.</div>
+      <div class="field">
+        <label>College name</label>
+        <input class="input" id="grCollege" placeholder="As it should print on the receipt">
+      </div>
+      <div class="two">
+        <div class="field"><label>Contact person</label><input class="input" id="grContact" placeholder="Teacher in charge"></div>
+        <div class="field"><label>Phone</label><input class="input" id="grPhone" inputmode="tel" placeholder="98xxxxxxxx"></div>
+      </div>
+      <div class="two">
+        <div class="field" style="flex:1.2"><label>Total received</label>
+          <div class="money-wrap"><span>₹</span><input id="grAmount" inputmode="numeric" placeholder="0"></div></div>
+        <div class="field"><label>Paid</label>
+          <div class="pills" id="grMode">
+            <button class="pill grow on" data-v="online" type="button">Online</button>
+            <button class="pill grow" data-v="cash" type="button">Cash</button>
+          </div></div>
+      </div>
+      <div class="field"><label id="grRefLabel">UPI / bank reference</label>
+        <input class="input mono" id="grRef" placeholder="UTR or transaction id" autocapitalize="characters" autocorrect="off"></div>
+
+      <div class="field">
+        <label>Student list</label>
+        <label for="grFile" class="drop" id="grDrop">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#82796a" stroke-width="2.4" stroke-linecap="round"><path d="M12 16V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 16v3.5h16V16"/></svg>
+          <span class="t" id="grDropMsg">Drop the CSV here, or tap to choose</span>
+          <span class="s">Needs a name column. Roll number, course, phone and amount are used if present.</span>
+        </label>
+        <input type="file" id="grFile" accept=".csv,text/csv,text/plain" style="display:none">
+      </div>
+      <div id="grPasteWrap" style="display:none">
+        <div class="field"><label>One student per line — name, roll number</label>
+          <textarea class="input" id="grPasteBox" rows="6" style="border-radius:20px;resize:vertical" placeholder="Aditi Sharma, 21CS041&#10;Rahul Verma, 21CS042"></textarea></div>
+        <button class="btn btn-out" id="grPasteGo" type="button" style="font-size:15px">Use these names</button>
+      </div>
+      <div id="grPreview"></div>
+      <button class="btn btn-primary" id="grSave" type="button">Save &amp; send for approval</button>
+      <button class="btn-quiet" id="grPaste" type="button" style="align-self:center;color:var(--ink-2)">Or paste the names instead</button>
+    </section>
+
+    <!-- GROUP DETAIL -->
+    <section class="view" id="v-groupone">
+      <button class="btn-quiet" data-go="home" type="button">← Home</button>
+      <div id="goneBody"></div>
     </section>
 
     <!-- APPROVALS -->
@@ -461,7 +521,7 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
     <!-- SCAN / GATE -->
     <section class="view" id="v-scan">
       <h1 style="font-size:24px;color:var(--navy)">Gate entry</h1>
-      <div class="note sand">Point the phone's own Camera app at the QR and it opens the check page. Or scan here, or type the last six characters.</div>
+      <div class="note sand">Point the phone's own Camera app at the QR and it opens the check page. Or scan here, or type the code printed on the pass.</div>
       <div id="camWrap" style="display:none"><video id="cam" playsinline muted></video></div>
       <div id="scanHint" style="display:none;font-size:12px;color:var(--ink-2);text-align:center;padding:4px 0"></div>
       <div class="btn-row">
@@ -469,10 +529,18 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
         <button class="btn btn-out" id="scanStop" type="button" style="display:none">Stop</button>
       </div>
       <div class="field">
-        <label>Or type the last six characters</label>
-        <input class="input mono" id="scanCode" placeholder="A7F3K9" autocapitalize="characters" autocorrect="off" maxlength="6">
+        <label>Or type the code from the pass</label>
+        <input class="input mono" id="scanCode" placeholder="A7F3K9 or GRP-K4M2XQ" autocapitalize="characters" autocorrect="off" maxlength="12">
       </div>
       <button class="btn btn-primary" id="scanGo" type="button">Check this pass</button>
+      <div id="groupSearch" style="display:none">
+        <div id="gsHead"></div>
+        <div class="field" style="margin-top:16px">
+          <label id="gsLabel">Find the student — name or roll number</label>
+          <input class="input" id="gsQ" placeholder="Start typing…" autocapitalize="words" autocorrect="off">
+        </div>
+        <div id="gsList"></div>
+      </div>
       <div id="scanResult"></div>
       <div class="eyebrow">Recent entries</div>
       <div class="card" id="entryList"><div class="empty">No one has come in yet.</div></div>

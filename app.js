@@ -15,8 +15,11 @@ var CATS = [
 ];
 var LS = 'des_cfg_v2', CACHE = 'des_cache_v2';
 
+var GATE_PIN = '2026';
+var GATEKEY = 'des_gate_ok';
 var cfg = {volunteer:'', role:'gate'};
-var rows = [], expenses = [], entries = [], current = null, currentKind = 'slip';
+var rows = [], expenses = [], entries = [], groups = [], roster = [], current = null, currentKind = 'slip';
+var grState = {mode:'online', students:[], group:null};
 var state = {mode:'online', alloc:ALLOCS[0], attend:'yes', filter:'all', kind:'slips',
              view:'home', role:'gate', cat:'Petrol', xmode:'cash'};
 var shots = {proof:'', photo:'', bill:''};
@@ -97,14 +100,22 @@ function shrink(file, max, cb){
 /* ---------- config ---------- */
 function loadCfg(){ try { cfg = JSON.parse(localStorage.getItem(LS)) || cfg; } catch(e){} return !!cfg.volunteer; }
 function saveCfg(){ try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch(e){} }
-function cacheAll(){ try { localStorage.setItem(CACHE, JSON.stringify({rows:rows.slice(0,400), expenses:expenses.slice(0,300), entries:entries.slice(-200)})); } catch(e){} }
+function cacheAll(){ try { localStorage.setItem(CACHE, JSON.stringify({rows:rows.slice(0,400), expenses:expenses.slice(0,300), entries:entries.slice(-200), groups:groups, roster:roster})); } catch(e){} }
 function restore(){ try { var d = JSON.parse(localStorage.getItem(CACHE))||{};
-  rows = d.rows||[]; expenses = d.expenses||[]; entries = d.entries||[]; } catch(e){} }
+  rows = d.rows||[]; expenses = d.expenses||[]; entries = d.entries||[];
+  groups = d.groups||[]; roster = d.roster||[]; } catch(e){} }
 
 /* ---------- navigation ---------- */
 function show(v){
   if (v === 'approve' && !isControl()) v = 'home';
   if (v !== 'scan') stopScan();
+  if (v === 'scan') {
+    grState.group = null;
+    var gsw = $('#groupSearch'); if (gsw) gsw.style.display = 'none';
+    var gsq = $('#gsQ'); if (gsq) gsq.value = '';
+    var sr = $('#scanResult'); if (sr) sr.innerHTML = '';
+    var sc = $('#scanCode'); if (sc) sc.value = '';
+  }
   state.view = v;
   $$('.view').forEach(function(s){ s.classList.toggle('on', s.id === 'v'+'-'+v); });
   $$('nav.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === v); });
@@ -129,6 +140,8 @@ function pull(){
       rows = (d.rows||[]).slice().sort(function(a,b){ return String(b.ts||'').localeCompare(String(a.ts||'')); });
       expenses = (d.expenses||[]).slice().sort(function(a,b){ return String(b.ts||'').localeCompare(String(a.ts||'')); });
       entries = d.entries || [];
+      groups = (d.groups||[]).slice().sort(function(a,b){ return String(b.ts||'').localeCompare(String(a.ts||'')); });
+      roster = d.roster || [];
       cacheAll(); paintAll();
       if (current) {
         var f = all().filter(function(r){ return r.id && r.id === current.id; })[0];
@@ -147,6 +160,7 @@ function push(body){
 function all(){ return rows.concat(expenses); }
 function pending(){ return all().filter(function(r){ return r.status === 'pending' && !r.sending; }); }
 function paintAll(){ renderHome(); renderLedger(); renderApprove(); renderEntries(); }
+function pendingGroups(){ return groups.filter(function(g){ return g.status === 'pending'; }); }
 
 /* ---------- lists ---------- */
 function rowHTML(r, i){
@@ -178,7 +192,7 @@ function renderHome(){
   var mine = rows.filter(function(r){ return live(r) && todayKey(r.ts) === t; });
   $('#hCount').textContent = mine.length;
   $('#hTotal').textContent = money(mine.reduce(function(s,r){ return s + num(r.amount); },0));
-  var p = pending(), b = $('#pendingBanner');
+  var p = pending().concat(pendingGroups()), b = $('#pendingBanner');
   if (p.length) {
     b.style.display = 'block';
     b.textContent = isControl()
@@ -219,14 +233,29 @@ function renderLedger(){
 }
 
 /* ---------- approvals ---------- */
+function groupApproveCards(){
+  return pendingGroups().map(function(g){
+    var list = groupRoster(g);
+    return '<div class="card" style="padding:15px 16px">'
+      + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'
+      +   '<div style="min-width:0"><div style="font-size:16px;font-weight:700">' + esc(g.college||'\u2014') + '</div>'
+      +     '<div style="font-size:12px;color:var(--ink-2)">' + list.length + ' students \u00b7 ' + esc(g.contact||'no contact') + '</div>'
+      +     '<div style="font-size:11.5px;color:var(--ink-3);margin-top:2px">Entered by ' + esc(g.volunteer||'\u2014') + '</div></div>'
+      +   '<div style="text-align:right;flex:none"><div style="font-family:\'Caprasimo\',Georgia,serif;font-size:23px;color:var(--navy);line-height:1.15">' + money(g.amount) + '</div>'
+      +     '<span class="tag ' + (g.mode==='cash'?'cash':'online') + '">' + (g.mode==='cash'?'Cash':'Online') + '</span></div></div>'
+      + '<button class="btn btn-out" data-gopen="' + esc(g.id) + '" type="button" style="margin-top:12px;font-size:15px">Open the group</button></div>';
+  }).join('');
+}
 function renderApprove(){
   if (!isControl()) return;
   var p = pending();
-  $('#aCount').textContent = p.length;
-  $('#aTotal').textContent = money(p.reduce(function(s,r){ return s + num(r.amount); },0));
+  var pg = pendingGroups();
+  $('#aCount').textContent = p.length + pg.length;
+  $('#aTotal').textContent = money(p.reduce(function(s,r){ return s + num(r.amount); },0)
+                                 + pg.reduce(function(s,g){ return s + num(g.amount); },0));
   var host = $('#approveList');
-  if (!p.length) { host.innerHTML = '<div class="card"><div class="empty">Nothing waiting. Every record has been dealt with.</div></div>'; return; }
-  host.innerHTML = p.map(function(r){
+  if (!p.length && !pg.length) { host.innerHTML = '<div class="card"><div class="empty">Nothing waiting. Every record has been dealt with.</div></div>'; return; }
+  host.innerHTML = groupApproveCards() + p.map(function(r){
     var isExp = !!r.payee;
     var tr = tier(r.amount);
     var head = isExp ? esc(r.payee||'—') : esc(r.donor||'—');
@@ -369,7 +398,7 @@ function openSlip(r){
 
   $('#outRow').style.display = approved ? 'flex' : 'none';
   $('#certBtn').style.display = (isExp || comp) ? 'none' : 'block';
-  $('#outRow').style.display = (approved && !comp) ? 'flex' : 'none';
+  $('#printBtn').style.display = comp ? 'none' : 'block';
   $('#printBtn').textContent = isExp ? 'Print record' : 'Receipt';
   $('#approveHere').style.display = (isControl() && st === 'pending') ? 'block' : 'none';
   $('#voidBtn').style.display = (approved && isControl()) ? 'flex' : 'none';
@@ -425,7 +454,8 @@ function catNote(){
   $('#xNoteField').style.display = c.ask ? 'block' : 'none';
   if (c.ask) { $('#xNoteLabel').textContent = c.ask; $('#xNote').placeholder = c.ask; }
 }
-var COMP_KINDS = ['Invitee','Chief Guest','Press','Artist / Performer'];
+var COMP_KINDS = ['Invitee','Chief Guest','Press','Media','Helped In Accommodation',
+                  'Helped In Sponsor','Artist / Performer','Other'];
 var compState = {kind: COMP_KINDS[0], n: 1};
 function buildComp(){
   $('#cKind').innerHTML = COMP_KINDS.map(function(k){
@@ -433,7 +463,8 @@ function buildComp(){
   }).join('');
 }
 function resetComp(){
-  $('#cName').value = ''; $('#cBy').value = '';
+  $('#cName').value = ''; $('#cBy').value = ''; $('#cPhone').value = ''; $('#cOther').value = '';
+  $('#cOtherField').style.display = 'none';
   compState.kind = COMP_KINDS[0]; compState.n = 1;
   $('#cNum').textContent = '1'; buildComp();
 }
@@ -441,7 +472,14 @@ function saveComp(){
   var name = $('#cName').value.trim();
   if (!name) { alert('Enter the name for the pass.'); $('#cName').focus(); return; }
   var btn = $('#cSave'); btn.disabled = true; btn.textContent = 'Issuing…';
-  push({action:'addComp', name:name, kind:compState.kind, guests:compState.n,
+  var kind = compState.kind;
+  if (kind === 'Other') {
+    var how = $('#cOther').value.trim();
+    if (!how) { alert('Say in what way they helped.'); $('#cOther').focus(); return; }
+    kind = 'Other \u00b7 ' + how;
+  }
+  push({action:'addComp', name:name, kind:kind, guests:compState.n,
+        phone:$('#cPhone').value.trim(),
         invitedBy:$('#cBy').value.trim(), issuedBy:cfg.volunteer})
     .then(function(d){
       var row = d.row;
@@ -458,6 +496,7 @@ function saveComp(){
 
 function startFlow(kind){
   if (kind === 'comp') { if (!isControl()) return; resetComp(); show('comp'); return; }
+  if (kind === 'group') { if (!isControl()) return; resetGroup(); show('group'); return; }
   if (kind === 'expense') { resetExpense(); show('expense'); return; }
   state.mode = kind;
   resetForm();
@@ -605,10 +644,17 @@ function renderEntries(){
 }
 function lookup(codeTail){
   var t = String(codeTail||'').trim().toUpperCase();
-  if (!t) { alert('Type the last six characters from the pass.'); return; }
+  if (!t) { alert('Type the code printed on the pass.'); return; }
+  var grp = groups.filter(function(g){
+    if (g.status !== 'live') return false;
+    var full = tail(g.code).toUpperCase();              /* GRP-K4M2XQ */
+    return full === t || full.replace(/^GRP-/, '') === t;
+  })[0];
+  if (grp) { showGroupGate(grp); return; }
+  $('#groupSearch').style.display = 'none';
   var hit = rows.filter(function(r){ return tail(r.code).toUpperCase() === t; })[0];
   if (!hit) {
-    $('#scanResult').innerHTML = '<div class="note clay" style="margin-top:12px"><b>Not found.</b> No pass ends in ' + esc(t) + '. Refresh and try again, or check with ' + esc(APPROVER) + '.</div>';
+    $('#scanResult').innerHTML = '<div class="note clay" style="margin-top:12px"><b>Not found.</b> No pass matches ' + esc(t) + '. Refresh and try again, or check with ' + esc(APPROVER) + '.</div>';
     return;
   }
   showGate(hit);
@@ -671,7 +717,7 @@ function gotCode(raw){
 }
 function startScan(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    alert('This browser has no camera access.\n\nUse the phone\'s own Camera app on the QR, or type the last six characters below.');
+    alert('This browser has no camera access.\n\nUse the phone\'s own Camera app on the QR, or type the code printed on the pass below.');
     return;
   }
   navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}).then(function(s){
@@ -719,8 +765,8 @@ function startScan(){
     loop();
   }).catch(function(e){
     alert(e && e.name === 'NotAllowedError'
-      ? 'Camera permission was refused.\n\nAllow camera access for this site in Settings, or type the last six characters below.'
-      : 'Camera not available. Type the last six characters instead.');
+      ? 'Camera permission was refused.\n\nAllow camera access for this site in Settings, or type the code printed on the pass below.'
+      : 'Camera not available. Type the code printed on the pass instead.');
   });
 }
 
@@ -838,6 +884,9 @@ $('#refreshBtn').addEventListener('click', pull);
 $('#cKind').addEventListener('click', function(e){
   var b = e.target.closest('.pill'); if(!b) return;
   compState.kind = b.dataset.v; paintPills($('#cKind'), compState.kind);
+  var other = compState.kind === 'Other';
+  $('#cOtherField').style.display = other ? 'block' : 'none';
+  if (other) $('#cOther').focus();
 });
 $('#cMinus').addEventListener('click', function(){ compState.n = Math.max(1, compState.n - 1); $('#cNum').textContent = compState.n; });
 $('#cPlus').addEventListener('click', function(){ compState.n = compState.n + 1; $('#cNum').textContent = compState.n; });
@@ -857,6 +906,323 @@ $('#batchBtn').addEventListener('click', function(){
 $('#certAllBtn').addEventListener('click', function(){
   printThese(printable(filtered()).map(certHTML).join(''), 'Certificates');
 });
+/* ---------- college groups ---------- */
+function csvRows(text){
+  var out = [], row = [], cell = '', q = false;
+  text = String(text||'').replace(/\r\n?/g, '\n');
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i+1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',' || ch === '\t') { row.push(cell); cell = ''; }
+    else if (ch === '\n') { row.push(cell); out.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); out.push(row); }
+  return out.filter(function(r){ return r.some(function(c){ return String(c).trim(); }); });
+}
+function pickCol(head, names){
+  for (var i = 0; i < head.length; i++) {
+    var h = String(head[i]||'').toLowerCase().replace(/[^a-z]/g,'');
+    for (var j = 0; j < names.length; j++) if (h.indexOf(names[j]) > -1) return i;
+  }
+  return -1;
+}
+function parseRoster(text){
+  var rowsIn = csvRows(text);
+  if (!rowsIn.length) return [];
+  var head = rowsIn[0].map(function(c){ return String(c).trim(); });
+  var iName = pickCol(head, ['studentname','name','fullname']);
+  var iRoll = pickCol(head, ['roll','enrol','enroll','regno','registration','id']);
+  var iCourse = pickCol(head, ['course','class','branch','stream','year','dept']);
+  var iPhone = pickCol(head, ['phone','mobile','contact']);
+  var iAmt = pickCol(head, ['amount','amt','paid','fee','contribution']);
+  var body = (iName > -1 || iRoll > -1) ? rowsIn.slice(1) : rowsIn;
+  if (iName === -1 && iRoll === -1) { iName = 0; iRoll = head.length > 1 ? 1 : -1; }
+  var seen = {}, out = [];
+  body.forEach(function(r){
+    var st = {
+      name: String(iName > -1 ? (r[iName]||'') : '').trim(),
+      roll: String(iRoll > -1 ? (r[iRoll]||'') : '').trim(),
+      course: String(iCourse > -1 ? (r[iCourse]||'') : '').trim(),
+      phone: String(iPhone > -1 ? (r[iPhone]||'') : '').trim(),
+      amount: num(iAmt > -1 ? (r[iAmt]||0) : 0)
+    };
+    if (!st.name && !st.roll) return;
+    var key = (st.name + '|' + st.roll).toLowerCase();
+    if (seen[key]) return;
+    seen[key] = 1; out.push(st);
+  });
+  return out;
+}
+function renderRosterPreview(){
+  var host = $('#grPreview'), list = grState.students;
+  if (!list.length) { host.innerHTML = ''; return; }
+  var paid = list.reduce(function(s,x){ return s + num(x.amount); }, 0);
+  var noRoll = list.filter(function(x){ return !x.roll; }).length;
+  host.innerHTML = '<div class="card" style="padding:14px 15px;margin-bottom:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">'
+    +   '<div style="font-size:15px;font-weight:700">' + list.length + ' student' + (list.length===1?'':'s') + '</div>'
+    +   (paid ? '<div style="font-size:12.5px;color:var(--ink-2)">' + money(paid) + ' listed</div>' : '') + '</div>'
+    + (noRoll ? '<div style="font-size:11.5px;color:var(--clay-ink);margin-top:4px">' + noRoll + ' without a roll number \u2014 the gate can still find them by name.</div>' : '')
+    + '<div style="margin-top:10px;max-height:210px;overflow:auto;display:flex;flex-direction:column;gap:1px">'
+    + list.map(function(st, i){
+        return '<div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(32,30,29,.07)">'
+          + '<span style="font-size:11px;color:var(--ink-3);width:26px;flex:none">' + (i+1) + '</span>'
+          + '<span style="flex:1;min-width:0;font-size:13.5px">' + esc(st.name || '\u2014') + '</span>'
+          + (st.roll ? '<span class="mono" style="font-size:11.5px;color:var(--ink-2);flex:none">' + esc(st.roll) + '</span>' : '')
+          + '</div>';
+      }).join('')
+    + '</div></div>';
+}
+function readRosterFile(f){
+  if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){
+    grState.students = parseRoster(rd.result);
+    $('#grDropMsg').textContent = grState.students.length
+      ? f.name + ' \u2014 ' + grState.students.length + ' students read'
+      : 'Could not find any names in ' + f.name;
+    renderRosterPreview();
+  };
+  rd.readAsText(f);
+}
+function saveGroup(){
+  var college = $('#grCollege').value.trim();
+  var amount = num($('#grAmount').value);
+  if (!college) { alert('Enter the college name.'); $('#grCollege').focus(); return; }
+  if (!grState.students.length) { alert('Add the student list first \u2014 upload a CSV or paste the names.'); return; }
+  var btn = $('#grSave'); btn.disabled = true; btn.textContent = 'Sending\u2026';
+  push({action:'addGroup', college:college, contact:$('#grContact').value.trim(),
+        phone:$('#grPhone').value.trim(), amount:amount, mode:grState.mode,
+        ref:$('#grRef').value.trim(), students:grState.students, volunteer:cfg.volunteer})
+    .then(function(d){
+      var g = d.group;
+      groups.unshift(g);
+      roster = roster.concat(grState.students.map(function(st){
+        return {id:'tmp-'+Math.random(), groupId:g.id, name:st.name, roll:st.roll,
+                course:st.course, phone:st.phone, amount:st.amount, entered:'', enteredAt:'', by:''};
+      }));
+      cacheAll(); paintAll(); resetGroup();
+      setSync('ok','Group sent to ' + APPROVER + ' for approval');
+      openGroup(g);
+    })
+    .catch(function(e){
+      setSync('bad','Could not send \u2014 ' + e.message);
+      alert('The group did NOT reach the Sheet.\n\n' + e.message);
+    })
+    .then(function(){ btn.disabled = false; btn.textContent = 'Save & send for approval'; });
+}
+function resetGroup(){
+  ['grCollege','grContact','grPhone','grAmount','grRef'].forEach(function(id){ $('#'+id).value = ''; });
+  $('#grPasteBox').value = '';
+  $('#grPasteWrap').style.display = 'none';
+  grState.mode = 'online'; grState.students = [];
+  paintPills($('#grMode'), 'online');
+  $('#grDropMsg').textContent = 'Drop the CSV here, or tap to choose';
+  $('#grPreview').innerHTML = '';
+}
+function groupRoster(g){
+  return roster.filter(function(r){ return r.groupId === g.id; });
+}
+function openGroup(g){
+  grState.group = g;
+  var list = groupRoster(g);
+  var inCount = list.filter(function(r){ return String(r.entered||''); }).length;
+  var live = g.status === 'live';
+  var head = live ? 'Group pass issued' : g.status === 'pending' ? 'Waiting for approval' : 'Rejected';
+  var body = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+    + '<span class="ok-dot" style="background:' + (live ? 'var(--sage)' : g.status === 'pending' ? 'var(--gold)' : 'var(--clay)') + '">'
+    +   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>'
+    + '<h1 style="font-size:22px;color:var(--navy)">' + head + '</h1></div>';
+
+  if (!live) {
+    body += '<div class="note ' + (g.status === 'pending' ? 'sand' : 'clay') + '">'
+      + (g.status === 'pending'
+          ? 'Recorded and sent to ' + esc(APPROVER) + '. No number, receipt or pass until he approves it.'
+          : 'Rejected by ' + esc(g.approvedBy || APPROVER) + '. No pass was issued.')
+      + '</div>';
+  }
+
+  body += '<div class="card" style="padding:16px;margin-top:12px">'
+    + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'
+    +   '<div style="min-width:0"><div style="font-size:17px;font-weight:700">' + esc(g.college||'\u2014') + '</div>'
+    +     '<div style="font-size:12px;color:var(--ink-2)">' + esc(g.contact||'') + (g.phone ? ' \u00b7 ' + esc(g.phone) : '') + '</div>'
+    +     (live ? '<div class="mono" style="font-size:13px;font-weight:700;color:var(--navy);margin-top:5px">' + esc(tail(g.code)) + '</div>' : '')
+    +   '</div>'
+    +   '<div style="text-align:right;flex:none"><div style="font-family:\'Caprasimo\',Georgia,serif;font-size:23px;color:var(--navy);line-height:1.15">' + money(g.amount) + '</div>'
+    +     '<span class="tag ' + (g.mode==='cash'?'cash':'online') + '">' + (g.mode==='cash'?'Cash':'Online') + '</span></div></div>'
+    + '<div class="stats" style="margin-top:14px">'
+    +   '<div class="stat"><div class="k">Students</div><div class="v">' + list.length + '</div></div>'
+    +   '<div class="stat"><div class="k">Entered</div><div class="v">' + inCount + '</div></div>'
+    +   '<div class="stat"><div class="k">Yet to come</div><div class="v">' + Math.max(0, list.length - inCount) + '</div></div></div>'
+    + '</div>';
+
+  if (live) {
+    body += '<div class="card" style="padding:15px 16px;margin-top:12px">'
+      + '<div style="display:flex;gap:13px;align-items:center">'
+      +   '<span class="qr"><img src="' + qrSrc(g.code, 208) + '" alt="QR"></span>'
+      +   '<div style="font-size:11.5px;color:var(--ink-2);line-height:1.5">One pass for the whole group. Scanning it opens the student list \u2014 the gate finds each student by name or roll number and ticks them in against their ID card.</div>'
+      + '</div></div>'
+      + '<div class="btn-row" style="margin-top:12px">'
+      +   '<button class="btn btn-navy" id="gPassBtn" type="button">Group pass</button>'
+      +   '<button class="btn btn-out" id="gRecBtn" type="button">Receipt</button></div>'
+      + '<button class="btn btn-out" id="gListBtn" type="button" style="margin-top:10px;font-size:15px">Print the student list</button>';
+  }
+
+  if (isControl() && g.status === 'pending') {
+    body += '<div class="btn-row" style="margin-top:14px">'
+      + '<button class="btn btn-primary" id="gOk" type="button">Approve</button>'
+      + '<button class="btn btn-out" id="gNo" type="button" style="color:var(--clay);border-color:var(--clay)">Reject</button></div>';
+  }
+
+  $('#goneBody').innerHTML = body;
+  show('groupone');
+
+  if (live) {
+    $('#gPassBtn').addEventListener('click', function(){ printThese(groupPassHTML(g), 'Group pass ' + tail(g.code)); });
+    $('#gRecBtn').addEventListener('click', function(){ printThese(groupReceiptHTML(g), 'Receipt ' + tail(g.code)); });
+    $('#gListBtn').addEventListener('click', function(){ printThese(rosterSheetHTML(g), 'Students ' + tail(g.code)); });
+  }
+  if (isControl() && g.status === 'pending') {
+    $('#gOk').addEventListener('click', function(){ groupDecide(g, 'approve', $('#gOk')); });
+    $('#gNo').addEventListener('click', function(){ groupDecide(g, 'reject', $('#gNo')); });
+  }
+}
+function groupDecide(g, decision, btn){
+  if (decision === 'reject' && !confirm('Reject ' + (g.college||'this group') + '? No pass will be issued.')) return;
+  btn.disabled = true; btn.textContent = decision === 'approve' ? 'Approving\u2026' : 'Rejecting\u2026';
+  push({action:'groupDecide', id:g.id, decision:decision, approvedBy:cfg.volunteer})
+    .then(function(d){
+      g.status = d.status; if (d.code) g.code = d.code;
+      g.approvedBy = cfg.volunteer; g.approvedAt = d.approvedAt || new Date().toISOString();
+      cacheAll(); paintAll(); openGroup(g);
+      setSync('ok', decision === 'approve' ? 'Group approved \u2014 ' + tail(g.code) : 'Group rejected');
+    })
+    .catch(function(e){
+      btn.disabled = false; btn.textContent = decision === 'approve' ? 'Approve' : 'Reject';
+      alert('Not recorded.\n\n' + e.message);
+    });
+}
+
+/* gate: search a roster */
+function showGroupGate(g){
+  grState.group = g;
+  $('#scanResult').innerHTML = '';
+  $('#gsHead').innerHTML = '<div class="card" style="padding:15px 16px;margin-top:12px">'
+    + '<div style="font-size:16px;font-weight:700">' + esc(g.college||'\u2014') + '</div>'
+    + '<div style="font-size:12px;color:var(--ink-2)">Group pass ' + esc(tail(g.code)) + ' \u00b7 ' + groupRoster(g).length + ' students</div></div>';
+  $('#groupSearch').style.display = 'block';
+  $('#gsQ').value = '';
+  renderGroupSearch();
+  $('#gsQ').focus();
+}
+function renderGroupSearch(){
+  var g = grState.group;
+  if (!g) return;
+  var q = $('#gsQ').value.trim().toLowerCase();
+  var list = groupRoster(g);
+  var inCount = list.filter(function(r){ return String(r.entered||''); }).length;
+  var shown = q
+    ? list.filter(function(r){ return (String(r.name||'') + ' ' + String(r.roll||'')).toLowerCase().indexOf(q) > -1; })
+    : list.filter(function(r){ return !String(r.entered||''); });
+  $('#gsLabel').textContent = 'Find the student \u2014 ' + inCount + ' of ' + list.length + ' already in';
+  var host = $('#gsList');
+  if (!shown.length) {
+    host.innerHTML = '<div class="note clay" style="margin-top:10px">' + (q ? 'No student matches \u201c' + esc(q) + '\u201d on this list. Do not admit.' : 'Everyone on this list has entered.') + '</div>';
+    return;
+  }
+  host.innerHTML = '<div class="card" style="margin-top:10px">' + shown.slice(0, 40).map(function(r){
+    var inYet = String(r.entered||'');
+    return '<div class="row-item" style="cursor:default">'
+      + '<div style="flex:1;min-width:0"><div class="nm">' + esc(r.name||'\u2014') + '</div>'
+      +   '<div class="cd">' + (r.roll ? '<span class="mono">' + esc(r.roll) + '</span>' : 'no roll number') + (r.course ? ' \u00b7 ' + esc(r.course) : '') + '</div></div>'
+      + (inYet
+          ? '<span class="tag void" style="flex:none">Already in</span>'
+          : '<button class="btn btn-primary" data-in="' + esc(r.id) + '" type="button" style="flex:none;width:auto;padding:10px 16px;font-size:14px;min-height:40px">Admit</button>')
+      + '</div>';
+  }).join('') + '</div>';
+  host.querySelectorAll('[data-in]').forEach(function(b){
+    b.addEventListener('click', function(){ admitStudent(b.dataset.in, b); });
+  });
+}
+function admitStudent(id, btn){
+  var g = grState.group;
+  var st = roster.filter(function(r){ return r.id === id; })[0];
+  if (!st || !g) return;
+  if (!staffOk() && !askGatePin()) return;
+  btn.disabled = true; btn.textContent = 'Admitting\u2026';
+  push({action:'enterStudent', id:id, groupId:g.id, code:g.code, by:cfg.volunteer})
+    .then(function(d){
+      st.entered = 'yes'; st.enteredAt = d.enteredAt; st.by = cfg.volunteer;
+      g.entered = d.groupEntered;
+      entries.push({ts:d.enteredAt, code:g.code, count:1, runningTotal:d.groupEntered, by:cfg.volunteer});
+      cacheAll(); renderGroupSearch(); renderEntries();
+      setSync('ok', st.name + ' admitted');
+    })
+    .catch(function(e){
+      btn.disabled = false; btn.textContent = 'Admit';
+      alert('Not admitted.\n\n' + e.message);
+    });
+}
+function askGatePin(){
+  var v = prompt('Gate staff PIN \u2014 asked once on this phone.');
+  if (v === null) return false;
+  if (String(v).trim() !== GATE_PIN) { alert('Wrong PIN. Ask ' + APPROVER + '.'); return false; }
+  try { localStorage.setItem(GATEKEY, GATE_PIN); } catch(e){}
+  return true;
+}
+function staffOk(){
+  if (isControl()) return true;
+  try { return localStorage.getItem(GATEKEY) === GATE_PIN; } catch(e){ return false; }
+}
+
+/* group print sheets */
+function groupPassHTML(g){
+  var list = groupRoster(g);
+  return '<div class="sheet"><div class="hd"><img src="assets/logo.png" alt="">'
+    + '<div style="flex:1;min-width:0"><div style="font-family:Caprasimo,Georgia,serif;font-size:15pt;color:#fff;line-height:1.1">Deaf and Envision School</div>'
+    +   '<div style="font-size:8.5pt;color:#e8c46a">Ganpati Mahotsav 2026 \u00b7 Group Pass</div></div>'
+    + '<img src="' + qrSrc(g.code, 200) + '" alt="" style="width:22mm;height:22mm;background:#fff;padding:2mm;border-radius:2mm;flex:none"></div>'
+    + '<div class="rule"></div><div class="bd">'
+    + '<div style="text-align:center"><div style="font-family:Caprasimo,Georgia,serif;font-size:22pt;color:#12294a">' + esc(g.college||'') + '</div>'
+    +   '<div style="font-family:ui-monospace,Menlo,monospace;font-size:13pt;font-weight:700;color:#8c491a;margin-top:2mm">' + esc(tail(g.code)) + '</div>'
+    +   '<div style="font-size:11pt;margin-top:3mm">' + list.length + ' students \u00b7 exposure visit</div></div>'
+    + '<div class="grid"><div><div class="k">Contact</div><div class="v">' + esc(g.contact||'\u2014') + '</div></div>'
+    +   '<div><div class="k">Phone</div><div class="v">' + esc(g.phone||'\u2014') + '</div></div>'
+    +   '<div style="grid-column:1/-1"><div class="k">At the gate</div><div style="font-size:9.5pt">Each student is found on the school\'s list by name or roll number, matched against their college ID card, and ticked in. One entry per student.</div></div></div>'
+    + '</div><div class="foot"><span>Issued by ' + esc(g.volunteer||'\u2014') + ', approved by ' + esc(g.approvedBy||APPROVER) + '.</span>'
+    + '<span style="letter-spacing:.09em;text-transform:uppercase;color:#12294a;font-weight:700;flex:none">Deaf and Envision School</span></div></div>';
+}
+function groupReceiptHTML(g){
+  return receiptHTML({
+    code:g.code, ts:g.ts, donor:g.college, amount:g.amount, phone:g.phone,
+    mode:g.mode, ref:g.ref, alloc:'General Fund', attend:'no',
+    volunteer:g.volunteer, approvedBy:g.approvedBy, status:g.status
+  });
+}
+function rosterSheetHTML(g){
+  var list = groupRoster(g);
+  var rowsHtml = list.map(function(r, i){
+    return '<tr><td style="padding:2mm 0;border-bottom:1px solid rgba(32,30,29,.12);font-size:9pt;width:10mm">' + (i+1) + '</td>'
+      + '<td style="padding:2mm 0;border-bottom:1px solid rgba(32,30,29,.12);font-size:10pt">' + esc(r.name||'') + '</td>'
+      + '<td style="padding:2mm 0;border-bottom:1px solid rgba(32,30,29,.12);font-size:9pt;font-family:ui-monospace,Menlo,monospace">' + esc(r.roll||'') + '</td>'
+      + '<td style="padding:2mm 0;border-bottom:1px solid rgba(32,30,29,.12);width:22mm"></td></tr>';
+  }).join('');
+  return '<div class="sheet"><div class="hd"><img src="assets/logo.png" alt="">'
+    + '<div style="flex:1"><div style="font-family:Caprasimo,Georgia,serif;font-size:14pt;color:#fff">' + esc(g.college||'') + '</div>'
+    +   '<div style="font-size:8.5pt;color:#e8c46a">Ganpati Mahotsav 2026 \u00b7 ' + esc(tail(g.code)) + ' \u00b7 ' + list.length + ' students</div></div></div>'
+    + '<div class="rule"></div><div class="bd">'
+    + '<table style="width:100%;border-collapse:collapse"><thead><tr>'
+    +   '<th style="text-align:left;font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;color:#82796a;padding-bottom:2mm">#</th>'
+    +   '<th style="text-align:left;font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;color:#82796a">Name</th>'
+    +   '<th style="text-align:left;font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;color:#82796a">Roll no.</th>'
+    +   '<th style="text-align:left;font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;color:#82796a">In</th></tr></thead>'
+    + '<tbody>' + rowsHtml + '</tbody></table></div></div>';
+}
+
 /* ---------- shareable images ---------- */
 function loadImg(src, cors){
   return new Promise(function(res, rej){
@@ -1012,7 +1378,7 @@ function waNumber(p){
 }
 function shareText(r){
   return 'Deaf and Envision School — Ganpati Mahotsav 2026\n\n'
-    + (isComp(r) ? 'Complimentary pass for ' : 'Thank you, ')
+    + (isComp(r) ? String(r.alloc || 'Complimentary') + ' pass for ' : 'Thank you, ')
     + (r.donor || r.name || '') + (isComp(r) ? '' : ', for your donation of ' + money(r.amount))
     + '.\n\nPass number: ' + passNo(r)
     + '\nShow the QR on the pass at the gate.\n' + verifyUrl(r.code);
@@ -1110,6 +1476,39 @@ document.addEventListener('paste', function(e){
   }
 });
 
+/* group */
+$('#grMode').addEventListener('click', function(e){
+  var b = e.target.closest('.pill'); if(!b) return;
+  grState.mode = b.dataset.v; paintPills($('#grMode'), grState.mode);
+  var online = grState.mode === 'online';
+  $('#grRefLabel').textContent = online ? 'UPI / bank reference' : 'Cash received in hand by';
+  $('#grRef').placeholder = online ? 'UTR or transaction id' : 'Name of the person who took the cash';
+});
+$('#grFile').addEventListener('change', function(e){ readRosterFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(function(ev){
+  $('#grDrop').addEventListener(ev, function(e){ e.preventDefault(); $('#grDrop').classList.add('hot'); });
+});
+['dragleave','drop'].forEach(function(ev){
+  $('#grDrop').addEventListener(ev, function(e){ e.preventDefault(); $('#grDrop').classList.remove('hot'); });
+});
+$('#grDrop').addEventListener('drop', function(e){
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) readRosterFile(e.dataTransfer.files[0]);
+});
+$('#grPaste').addEventListener('click', function(){
+  var w = $('#grPasteWrap');
+  w.style.display = w.style.display === 'none' ? 'block' : 'none';
+  if (w.style.display === 'block') $('#grPasteBox').focus();
+});
+$('#grPasteGo').addEventListener('click', function(){
+  grState.students = parseRoster($('#grPasteBox').value);
+  $('#grDropMsg').textContent = grState.students.length
+    ? grState.students.length + ' students pasted'
+    : 'No names found in what you pasted';
+  renderRosterPreview();
+});
+$('#grSave').addEventListener('click', saveGroup);
+$('#gsQ').addEventListener('input', renderGroupSearch);
+
 /* gate */
 $('#scanStart').addEventListener('click', startScan);
 $('#scanStop').addEventListener('click', stopScan);
@@ -1143,6 +1542,7 @@ $('#setSave').addEventListener('click', function(){
 });
 function applyRole(){
   $('#pickComp').style.display = isControl() ? 'flex' : 'none';
+  $('#pickGroup').style.display = isControl() ? 'flex' : 'none';
   $('#tabApprove').style.display = isControl() ? 'flex' : 'none';
   $('#roleChip').textContent = isControl() ? 'Main control' : 'Entry gate';
   $('#whoName').textContent = (cfg.volunteer||'').split(/[\s—-]/)[0];
