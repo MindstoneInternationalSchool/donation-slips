@@ -39,13 +39,13 @@ function tail(code){ return String(code||'').split('/').pop(); }
 function tier(n){
   n = num(n);
   if (n >= 25000) return {name:'Patron',    guests:16, band:'Patron · ₹25,000 & above', art:'vip',
-    note:'Patron tier — VIP Pass, sixteen guests.'};
+    note:'Patron tier — VIP Pass.'};
   if (n >= 2500)  return {name:'Donor',     guests:8,  band:'Donor · ₹2,500 & above', art:'vip',
-    note:'Donor tier — VIP Pass, eight guests.'};
+    note:'Donor tier — VIP Pass.'};
   if (n >  2000)  return {name:'Supporter', guests:2,  band:'Supporter · ₹2,001 – 2,499', art:'entry',
-    note:'Supporter tier — general admission, two guests.'};
+    note:'Supporter tier — general admission.'};
   return            {name:'Entry',     guests:1,  band:'Entry · ₹1 – 2,000', art:'entry',
-    note:'Entry tier — general admission, one guest.'};
+    note:'Entry tier — general admission.'};
 }
 function isComp(r){ return r && r.mode === 'comp'; }
 function compTier(r){
@@ -663,31 +663,65 @@ function stopScan(){
   $('#scanStop').style.display = 'none';
   $('#scanStart').style.display = 'block';
 }
+function gotCode(raw){
+  var m = String(raw||'').match(/[?&]c=([^&]+)/);
+  var code = m ? decodeURIComponent(m[1]) : raw;
+  stopScan();
+  lookup(tail(code));
+}
 function startScan(){
-  if (!('BarcodeDetector' in window)) {
-    alert('This browser cannot scan in-app.\n\nUse the phone\'s own Camera app on the QR — it opens the same check page. Or type the last six characters below.');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('This browser has no camera access.\n\nUse the phone\'s own Camera app on the QR, or type the last six characters below.');
     return;
   }
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(function(s){
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}).then(function(s){
     scanning = s;
-    var v = $('#cam'); v.srcObject = s; v.play();
+    var v = $('#cam');
+    v.srcObject = s; v.setAttribute('playsinline',''); v.muted = true;
+    var p = v.play(); if (p && p.catch) p.catch(function(){});
     $('#camWrap').style.display = 'block';
     $('#scanStop').style.display = 'block';
     $('#scanStart').style.display = 'none';
-    var det = new window.BarcodeDetector({formats:['qr_code']});
-    var tick = function(){
+
+    if ('BarcodeDetector' in window) {
+      var det = new window.BarcodeDetector({formats:['qr_code']});
+      var tick = function(){
+        if (!scanning) return;
+        det.detect(v).then(function(hits){
+          if (hits && hits.length) gotCode(hits[0].rawValue);
+          else setTimeout(tick, 300);
+        }).catch(function(){ setTimeout(tick, 500); });
+      };
+      tick();
+      return;
+    }
+
+    /* Safari and anything else: decode frames with jsQR */
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d', {willReadFrequently:true});
+    var loop = function(){
       if (!scanning) return;
-      det.detect(v).then(function(hits){
-        if (hits && hits.length) {
-          var m = String(hits[0].rawValue||'').match(/[?&]c=([^&]+)/);
-          var code = m ? decodeURIComponent(m[1]) : hits[0].rawValue;
-          stopScan();
-          lookup(tail(code));
-        } else setTimeout(tick, 320);
-      }).catch(function(){ setTimeout(tick, 500); });
+      if (!window.jsQR || v.readyState !== 4) { setTimeout(loop, 220); return; }
+      var w = Math.min(640, v.videoWidth || 0), h = Math.round((v.videoHeight || 0) * (w / (v.videoWidth || 1)));
+      if (!w || !h) { setTimeout(loop, 220); return; }
+      cv.width = w; cv.height = h;
+      cx.drawImage(v, 0, 0, w, h);
+      var hit = null;
+      try {
+        hit = window.jsQR(cx.getImageData(0, 0, w, h).data, w, h, {inversionAttempts:'dontInvert'});
+      } catch(e){}
+      if (hit && hit.data) gotCode(hit.data);
+      else setTimeout(loop, 160);
     };
-    tick();
-  }).catch(function(){ alert('Camera not available. Type the last six characters instead.'); });
+    if (!window.jsQR) {
+      $('#scanHint').textContent = 'Loading the scanner…';
+      $('#scanHint').style.display = 'block';
+    }
+    loop();
+  }).catch(function(e){
+    alert(e && e.name === 'NotAllowedError'
+      ? 'Camera permission was refused.\n\nAllow camera access for this site in Settings, or type the last six characters below.'
+      : 'Camera not available. Type the last six characters instead.');
+  });
 }
 
 /* ---------- print ---------- */
@@ -823,14 +857,200 @@ $('#batchBtn').addEventListener('click', function(){
 $('#certAllBtn').addEventListener('click', function(){
   printThese(printable(filtered()).map(certHTML).join(''), 'Certificates');
 });
+/* ---------- shareable images ---------- */
+function loadImg(src, cors){
+  return new Promise(function(res, rej){
+    var i = new Image();
+    if (cors) i.crossOrigin = 'anonymous';
+    i.onload = function(){ res(i); };
+    i.onerror = function(){ rej(new Error('image')); };
+    i.src = src;
+  });
+}
+function roundRect(c, x, y, w, h, r){
+  c.beginPath();
+  c.moveTo(x+r, y); c.arcTo(x+w, y, x+w, y+h, r); c.arcTo(x+w, y+h, x, y+h, r);
+  c.arcTo(x, y+h, x, y, r); c.arcTo(x, y, x+w, y, r); c.closePath();
+}
+function wrapText(c, text, x, y, max, lh){
+  var words = String(text).split(' '), line = '', n = 0;
+  for (var i = 0; i < words.length; i++) {
+    var t = line + words[i] + ' ';
+    if (c.measureText(t).width > max && line) { c.fillText(line.trim(), x, y + n*lh); line = words[i] + ' '; n++; }
+    else line = t;
+  }
+  c.fillText(line.trim(), x, y + n*lh);
+  return n + 1;
+}
+function toBlob(cv){
+  return new Promise(function(res){ cv.toBlob(function(b){ res(b); }, 'image/png', 0.95); });
+}
+
+async function passPNG(r){
+  var tr = isComp(r) ? compTier(r) : tier(r.amount);
+  var allowed = r.guestsAllowed == null || r.guestsAllowed === '' ? tr.guests : Number(r.guestsAllowed);
+  var art = await loadImg(tr.art === 'vip' ? 'assets/vip-pass.png' : 'assets/entry-pass.png');
+  var qr = null;
+  try { qr = await loadImg(qrSrc(r.code, 520), true); } catch(e){}
+  var W = 1080, artH = Math.round(W * art.height / art.width), padH = 470;
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = artH + padH;
+  var c = cv.getContext('2d');
+  c.fillStyle = '#12294a'; c.fillRect(0, 0, W, cv.height);
+  c.drawImage(art, 0, 0, W, artH);
+
+  c.textAlign = 'center';
+  c.fillStyle = tr.art === 'vip' ? '#0b1b30' : '#5a1f13';
+  c.font = "700 " + Math.round(W * 0.019) + "px ui-monospace, Menlo, monospace";
+  if (tr.art === 'vip') {
+    c.fillText(passNo(r), W * 0.856, artH * 0.862);
+  } else {
+    c.fillText(passNo(r), W * 0.63, artH * 0.74);
+    c.font = "700 " + Math.round(W * 0.016) + "px ui-monospace, Menlo, monospace";
+    c.fillText(passNo(r), W * 0.893, artH * 0.715);
+  }
+  c.textAlign = 'left';
+
+  var y = artH + 44;
+  c.fillStyle = '#f5ead8';
+  roundRect(c, 40, y, W - 80, padH - 88, 34); c.fill();
+
+  c.fillStyle = '#82796a'; c.font = '600 22px Figtree, sans-serif';
+  c.fillText(String(tr.name).toUpperCase() + ' PASS', 80, y + 62);
+  c.fillStyle = '#12294a'; c.font = "700 46px 'Caprasimo', Georgia, serif";
+  c.fillText(passNo(r), 80, y + 118);
+  c.fillStyle = '#201e1d'; c.font = '600 28px Figtree, sans-serif';
+  c.fillText(String(r.donor || r.name || ''), 80, y + 170);
+  c.fillStyle = '#645c50'; c.font = '400 24px Figtree, sans-serif';
+  c.fillText('Admits ' + allowed + ' guest' + (allowed === 1 ? '' : 's') + ' · scan at the gate', 80, y + 212);
+  c.fillStyle = '#8c491a'; c.font = '400 20px Figtree, sans-serif';
+  c.fillText('Deaf and Envision School · Ganpati Mahotsav 2026', 80, y + 256);
+
+  if (qr) {
+    var s = 210, qx = W - 80 - s, qy = y + 46;
+    c.fillStyle = '#fff'; roundRect(c, qx - 14, qy - 14, s + 28, s + 28, 18); c.fill();
+    c.drawImage(qr, qx, qy, s, s);
+  }
+  return toBlob(cv);
+}
+
+async function certPNG(r){
+  var W = 1240, H = 1754;
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  var c = cv.getContext('2d');
+  c.fillStyle = '#f5ead8'; c.fillRect(0, 0, W, H);
+  c.strokeStyle = '#c9922f'; c.lineWidth = 8;  c.strokeRect(54, 54, W - 108, H - 108);
+  c.strokeStyle = '#12294a'; c.lineWidth = 2;  c.strokeRect(78, 78, W - 156, H - 156);
+
+  var logo = await loadImg('assets/logo.png');
+  c.save(); c.beginPath(); c.arc(W/2, 250, 78, 0, Math.PI*2); c.closePath(); c.clip();
+  c.fillStyle = '#fffaf1'; c.fill();
+  c.drawImage(logo, W/2 - 78, 250 - 78, 156, 156); c.restore();
+
+  c.textAlign = 'center';
+  c.fillStyle = '#12294a'; c.font = "400 38px 'Caprasimo', Georgia, serif";
+  c.fillText('Deaf and Envision School', W/2, 400);
+  c.fillStyle = '#82796a'; c.font = '600 19px Figtree, sans-serif';
+  c.fillText('गूँगे बहारों का विद्यालय  ·  ESTABLISHED 1954', W/2, 436);
+
+  c.fillStyle = '#12294a'; c.font = "400 66px 'Caprasimo', Georgia, serif";
+  c.fillText('Certificate of Appreciation', W/2, 560);
+  c.strokeStyle = '#c9922f'; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(W/2 - 120, 596); c.lineTo(W/2 + 120, 596); c.stroke();
+
+  c.fillStyle = '#645c50'; c.font = '400 24px Figtree, sans-serif';
+  c.fillText('This is to certify that', W/2, 676);
+  c.fillStyle = '#201e1d'; c.font = "400 58px 'Caprasimo', Georgia, serif";
+  c.fillText(String(r.donor || r.name || ''), W/2, 756);
+  c.strokeStyle = 'rgba(32,30,29,.25)'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(280, 786); c.lineTo(W - 280, 786); c.stroke();
+
+  c.fillStyle = '#645c50'; c.font = '400 24px Figtree, sans-serif';
+  var lines = isComp(r)
+    ? 'has been warmly invited as our guest to the Ganpati Mahotsav 2026 cultural evening, and we are honoured by their presence.'
+    : 'has generously contributed ' + money(r.amount) + ' towards the Ganpati Mahotsav 2026 fundraiser, supporting a computer laboratory, skills training halls, building renovation, and classroom equipment for our students.';
+  wrapText(c, lines, W/2, 856, W - 400, 40);
+
+  if (!isComp(r)) {
+    c.fillStyle = '#12294a'; c.font = "400 72px 'Caprasimo', Georgia, serif";
+    c.fillText(money(r.amount), W/2, 1060);
+    c.fillStyle = '#82796a'; c.font = '400 22px Figtree, sans-serif';
+    c.fillText(words(r.amount), W/2, 1100);
+  }
+
+  c.fillStyle = '#645c50'; c.font = '400 23px Figtree, sans-serif';
+  c.fillText('With heartfelt gratitude from our students and staff.', W/2, 1180);
+
+  var sig = await loadImg('assets/signature.png');
+  var stamp = await loadImg('assets/stamp.png');
+  c.drawImage(sig, 210, 1268, 300, 300);
+  c.strokeStyle = 'rgba(32,30,29,.35)'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(220, 1470); c.lineTo(540, 1470); c.stroke();
+  c.fillStyle = '#201e1d'; c.font = '700 26px Figtree, sans-serif';
+  c.fillText('Srajan Mishra', 380, 1508);
+  c.fillStyle = '#645c50'; c.font = '400 20px Figtree, sans-serif';
+  c.fillText('Director of Operations', 380, 1538);
+  c.drawImage(stamp, W - 420, 1300, 200, 200);
+
+  try {
+    var qr = await loadImg(qrSrc(r.code, 300), true);
+    c.drawImage(qr, W - 380, 1520, 120, 120);
+  } catch(e){}
+  c.fillStyle = '#82796a'; c.font = '400 19px ui-monospace, Menlo, monospace';
+  c.fillText(String(r.code || ''), W/2, 1650);
+  c.textAlign = 'left';
+  return toBlob(cv);
+}
+
+function waNumber(p){
+  var d = String(p || '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  if (d.length === 10) d = '91' + d;
+  if (d.length === 11 && d[0] === '0') d = '91' + d.slice(1);
+  return d;
+}
+function shareText(r){
+  return 'Deaf and Envision School — Ganpati Mahotsav 2026\n\n'
+    + (isComp(r) ? 'Complimentary pass for ' : 'Thank you, ')
+    + (r.donor || r.name || '') + (isComp(r) ? '' : ', for your donation of ' + money(r.amount))
+    + '.\n\nPass number: ' + passNo(r)
+    + '\nShow the QR on the pass at the gate.\n' + verifyUrl(r.code);
+}
+
+async function sendWhatsApp(r, btn){
+  var label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  try {
+    var files = [];
+    try { var p = await passPNG(r); if (p) files.push(new File([p], 'pass-' + passNo(r) + '.png', {type:'image/png'})); } catch(e){}
+    try { var ct = await certPNG(r); if (ct) files.push(new File([ct], 'certificate-' + passNo(r) + '.png', {type:'image/png'})); } catch(e){}
+    var txt = shareText(r);
+
+    if (files.length && navigator.canShare && navigator.canShare({files:files})) {
+      await navigator.share({files:files, text:txt});
+      return;
+    }
+    files.forEach(function(f){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(f); a.download = f.name; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    });
+    var n = waNumber(r.phone);
+    window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(txt), '_blank');
+    alert(n
+      ? 'WhatsApp is opening for ' + r.phone + ' with the message ready.\n\nThe pass and certificate images just downloaded — attach them in WhatsApp.'
+      : 'No phone number on this entry, so WhatsApp opened without a contact.\n\nThe pass and certificate images just downloaded — attach them.');
+  } catch(e) {
+    if (e && e.name === 'AbortError') return;
+    alert('Could not prepare the images. ' + (e && e.message ? e.message : ''));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
 $('#shareBtn').addEventListener('click', function(){
-  if (!current) return;
-  var txt = 'Deaf and Envision School — donation receipt ' + (current.code||'') + '\n'
-    + (current.donor||'') + ' · ' + money(current.amount) + ' · ' + (current.mode==='cash'?'Paid in Cash':'Paid Online') + '\n'
-    + 'Allocated to ' + (current.alloc||'General Fund') + '. Thank you for supporting Ganpati Mahotsav 2026.\n'
-    + verifyUrl(current.code);
-  if (navigator.share) navigator.share({title:'Donation receipt', text:txt}).catch(function(){});
-  else if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){ alert('Copied — paste into WhatsApp.'); });
+  if (current) sendWhatsApp(current, $('#shareBtn'));
 });
 $('#voidBtn').addEventListener('click', function(){ if (current) decide(current.id, 'void', null); });
 $('#okBtn').addEventListener('click', function(){ if (current) decide(current.id, 'approve', $('#okBtn')); });

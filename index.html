@@ -451,7 +451,7 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
           <button class="btn btn-navy" id="certBtn" type="button">Certificate</button>
         </div>
         <div class="btn-row">
-          <button class="btn btn-out" id="shareBtn" type="button">Share</button>
+          <button class="btn btn-out" id="shareBtn" type="button">Send on WhatsApp</button>
           <button class="btn btn-out" id="againBtn" type="button">Next donor</button>
         </div>
       </div>
@@ -463,6 +463,7 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
       <h1 style="font-size:24px;color:var(--navy)">Gate entry</h1>
       <div class="note sand">Point the phone's own Camera app at the QR and it opens the check page. Or scan here, or type the last six characters.</div>
       <div id="camWrap" style="display:none"><video id="cam" playsinline muted></video></div>
+      <div id="scanHint" style="display:none;font-size:12px;color:var(--ink-2);text-align:center;padding:4px 0"></div>
       <div class="btn-row">
         <button class="btn btn-navy" id="scanStart" type="button">Scan a QR</button>
         <button class="btn btn-out" id="scanStop" type="button" style="display:none">Stop</button>
@@ -525,6 +526,7 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
 </div>
 
 <div id="print-root"></div>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
