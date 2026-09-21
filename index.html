@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Deaf &amp; Envision — Donation Slips</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Donation Slips">
+<meta name="theme-color" content="#12294a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#12294a; --navy-d:#0b1b30; --gold:#c9922f; --gold-l:#e8c46a;
+  --bg:#f5ead8; --surface:#fffaf1; --sand:#ebddc5; --ink:#201e1d;
+  --ink-2:#645c50; --ink-3:#82796a; --sage:#7a8a5e; --sage-bg:#e1eecc; --sage-ink:#3d472b;
+  --clay:#8c491a; --clay-bg:#ffe1d0; --clay-ink:#643312;
+  --line:rgba(32,30,29,.12); --sh:0 1px 2px rgba(46,43,37,.14); --sh-md:0 3px 10px rgba(46,43,37,.18);
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"Figtree",system-ui,-apple-system,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+h1,h2,h3{font-family:"Caprasimo",Georgia,serif;font-weight:400;margin:0;line-height:1.12}
+a{color:var(--navy)}a:hover{color:var(--gold)}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink)}
+input::placeholder{color:rgba(32,30,29,.36)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+::selection{background:rgba(201,146,47,.3)}
+
+#app{max-width:520px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding-bottom:calc(72px + var(--safe-b))}
+header.top{background:linear-gradient(170deg,var(--navy),var(--navy-d));padding:calc(var(--safe-t) + 14px) 18px 16px;border-radius:0 0 26px 26px;position:relative;overflow:hidden;flex:none}
+header.top .blob{position:absolute;right:-56px;top:-46px;width:180px;height:180px;border-radius:999px;background:rgba(201,146,47,.16)}
+header.top .row{display:flex;align-items:center;gap:12px;position:relative}
+header.top img{width:44px;height:44px;border-radius:999px;flex:none;background:var(--bg)}
+.brand-name{font-family:"Caprasimo",Georgia,serif;font-size:17px;color:#fff;line-height:1.15}
+.brand-sub{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-l)}
+.chipline{margin-top:14px;display:flex;align-items:center;gap:8px;position:relative;flex-wrap:wrap}
+.chip-gold{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy-d);background:var(--gold-l);padding:5px 11px;border-radius:999px}
+.chip-ghost{font-size:11.5px;color:rgba(255,255,255,.62)}
+.chip-who{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--gold-l);background:rgba(255,255,255,.1);border:0;padding:6px 12px;border-radius:999px;display:flex;align-items:center;gap:6px}
+
+main{flex:1;padding:18px 16px 28px;display:flex;flex-direction:column;gap:14px}
+.view{display:none;flex-direction:column;gap:14px}
+.view.on{display:flex}
+
+.eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.stats{display:flex;gap:10px}
+.stat{flex:1;background:var(--surface);border-radius:16px;padding:13px 14px;box-shadow:var(--sh)}
+.stat .k{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.stat .v{font-family:"Caprasimo",Georgia,serif;font-size:25px;color:var(--navy);line-height:1.1;overflow-wrap:anywhere}
+.stat.wide{flex:1.5}
+
+.card{background:var(--surface);border-radius:20px;box-shadow:var(--sh);overflow:hidden}
+.btn{width:100%;border:0;border-radius:999px;padding:16px;font-family:"Caprasimo",Georgia,serif;font-size:17px;min-height:52px}
+.btn-primary{background:var(--gold);color:var(--navy-d)}
+.btn-primary:active{background:#b2802a}
+.btn-navy{background:var(--navy);color:#fff}
+.btn-navy:active{background:#1b3b66}
+.btn-out{background:var(--surface);color:var(--navy);border:1px solid var(--navy)}
+.btn-out:active{background:rgba(18,41,74,.08)}
+.btn:disabled{opacity:.45}
+.btn-row{display:flex;gap:10px}
+.btn-row .btn{flex:1;font-size:15px}
+.btn-quiet{background:none;border:0;color:var(--navy);font-weight:700;font-size:14px;padding:6px 0;align-self:flex-start;min-height:44px;display:flex;align-items:center}
+
+.pick{display:flex;flex-direction:column;gap:12px}
+.pick button{display:flex;align-items:center;gap:14px;text-align:left;background:var(--surface);border:0;border-radius:20px;padding:18px;box-shadow:var(--sh);min-height:84px;width:100%}
+.pick button:active{background:var(--sand)}
+.pick .ic{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex:none}
+.pick .txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pick .t{display:block;font-family:"Caprasimo",Georgia,serif;font-size:17px;color:var(--navy);line-height:1.15}
+.pick .s{display:block;font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.pick svg{stroke-width:2.75;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.field label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6px}
+.input{width:100%;border:1px solid rgba(32,30,29,.16);background:var(--surface);border-radius:999px;padding:14px 17px;min-height:50px}
+.input:focus{border-color:var(--gold);outline:none}
+.money-wrap{display:flex;align-items:center;border:1px solid rgba(32,30,29,.16);background:var(--surface);border-radius:999px;padding:0 17px;min-height:50px}
+.money-wrap:focus-within{border-color:var(--gold)}
+.money-wrap span{font-weight:700;color:var(--ink-3)}
+.money-wrap input{flex:1;min-width:0;border:0;background:transparent;padding:13px 8px;font-size:19px;font-weight:700}
+.money-wrap input:focus{outline:none}
+.two{display:flex;gap:10px}.two>*{flex:1;min-width:0}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{border-radius:999px;padding:12px 15px;font-size:13.5px;font-weight:700;border:1px solid rgba(32,30,29,.16);background:var(--surface);color:var(--ink);min-height:44px}
+.pill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pill.grow{flex:1}
+.mono{font-family:ui-monospace,Menlo,monospace;letter-spacing:.03em}
+
+.drop{border:2px dashed rgba(18,41,74,.3);background:var(--surface);border-radius:20px;padding:26px 18px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.drop.hot{border-color:var(--gold);background:#fff6e6}
+.drop .t{font-family:"Caprasimo",Georgia,serif;font-size:16px;color:var(--navy)}
+.drop .s{font-size:12.5px;color:var(--ink-2);line-height:1.45;max-width:30ch}
+.shot{position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
+.shot img{width:100%;display:block;max-height:280px;object-fit:contain;background:#0b1b30}
+.shot button{position:absolute;top:8px;right:8px;background:rgba(11,27,48,.82);color:#fff;border:0;border-radius:999px;width:34px;height:34px;font-size:17px;line-height:1}
+.thumb{width:54px;height:54px;border-radius:12px;object-fit:cover;flex:none;background:var(--sand)}
+
+.row-item{display:flex;align-items:center;gap:12px;padding:14px 15px;border-bottom:1px solid rgba(32,30,29,.08);background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;min-height:64px}
+.row-item:last-child{border-bottom:0}
+.row-item:active{background:var(--bg)}
+.row-item .nm{font-size:15px;font-weight:700;color:var(--ink)}
+.row-item .cd{font-size:10.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.row-item .rt{text-align:right;flex:none}
+.row-item .am{font-size:15px;font-weight:700;color:var(--navy)}
+.tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;display:inline-block;margin-top:3px}
+.tag.online{background:var(--sage-bg);color:var(--sage-ink)}
+.tag.cash{background:var(--clay-bg);color:var(--clay-ink)}
+.tag.pending{background:var(--sand);color:var(--ink-2)}
+.tag.wait{background:#ffe9bd;color:#6b4a06}
+.tag.void{background:rgba(32,30,29,.1);color:var(--ink-2)}
+.empty{padding:30px 18px;text-align:center;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+
+.note{border-radius:16px;padding:12px 15px;font-size:12.5px;line-height:1.5}
+.note.sand{background:var(--sand);color:var(--ink)}
+.note.navy{background:var(--navy);color:rgba(255,255,255,.9)}
+.note.clay{background:var(--clay-bg);color:var(--clay-ink)}
+.note.sage{background:var(--sage-bg);color:var(--sage-ink)}
+.note b{color:var(--gold-l)}
+.note.sand b,.note.clay b,.note.sage b{color:inherit}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,250,241,.94);backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 0 calc(4px + var(--safe-b));display:flex}
+nav.tabs .wrap{max-width:520px;margin:0 auto;display:flex;width:100%}
+nav.tabs button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;color:var(--ink-3);font-size:10.5px;font-weight:700;letter-spacing:.02em;min-height:52px;position:relative}
+nav.tabs button.on{color:var(--navy)}
+nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+.badge{position:absolute;top:3px;right:50%;transform:translateX(18px);background:#8c491a;color:#fff;font-size:9.5px;line-height:1;padding:3px 5px;border-radius:999px}
+
+.slip-card{background:var(--surface);border-radius:20px;padding:16px;box-shadow:var(--sh-md)}
+.slip-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:12px;border-bottom:1px solid rgba(32,30,29,.1)}
+.pass-wrap{position:relative;border-radius:12px;overflow:hidden;box-shadow:var(--sh)}
+.pass-wrap img{width:100%;display:block}
+.pass-wrap span{position:absolute;transform:translate(-50%,-50%);font-family:ui-monospace,Menlo,monospace;font-weight:700;white-space:nowrap}
+.ok-dot{width:34px;height:34px;border-radius:999px;background:var(--sage);display:flex;align-items:center;justify-content:center;flex:none}
+.qr{background:#fff;border-radius:14px;padding:10px;box-shadow:var(--sh);flex:none}
+.qr img{display:block;width:104px;height:104px}
+
+.search{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid rgba(32,30,29,.16);border-radius:999px;padding:0 16px;min-height:48px}
+.search input{flex:1;min-width:0;border:0;background:transparent;padding:12px 0}
+.search input:focus{outline:none}
+.sync{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-2)}
+.sync .dot{width:8px;height:8px;border-radius:999px;background:var(--sage);flex:none}
+.sync .dot.bad{background:var(--clay)}
+.sync .dot.wait{background:var(--gold)}
+.sync button{margin-left:auto;background:none;border:1px solid rgba(32,30,29,.2);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:700;color:var(--navy);min-height:38px}
+.step{display:flex;align-items:center;gap:0;border:1px solid rgba(32,30,29,.16);background:var(--surface);border-radius:999px;overflow:hidden;min-height:50px}
+.step button{background:none;border:0;width:48px;font-size:22px;color:var(--navy);line-height:1;min-height:48px}
+.step span{flex:1;text-align:center;font-family:"Caprasimo",Georgia,serif;font-size:21px;color:var(--navy)}
+#cam{width:100%;border-radius:16px;background:#0b1b30;display:block;max-height:320px;object-fit:cover}
+
+/* ---- print ---- */
+#print-root{display:none}
+@media print{
+  #app,nav.tabs{display:none!important}
+  #print-root{display:block!important}
+  body{background:#fff}
+  @page{size:A4;margin:10mm}
+  .sheet{page-break-after:always;break-after:page}
+  .sheet:last-child{page-break-after:auto;break-after:auto}
+}
+.sheet{width:100%;max-width:190mm;margin:0 auto;background:#fff;color:#201e1d;font-size:11pt}
+.sheet .hd{background:#12294a;padding:16px 22px;display:flex;align-items:center;gap:14px}
+.sheet .hd img{width:62px;height:62px;border-radius:999px;flex:none;background:#f5ead8}
+.sheet .rule{height:4px;background:#c9922f}
+.sheet .bd{padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.sheet .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;background:#f9f4ed;border:1px solid rgba(32,30,29,.1);border-radius:14px;padding:14px 16px}
+.sheet .k{font-size:8pt;letter-spacing:.1em;text-transform:uppercase;color:#82796a}
+.sheet .v{font-size:11.5pt;font-weight:700}
+.sheet .foot{background:#f5ead8;border-top:1px solid rgba(32,30,29,.12);padding:10px 22px;display:flex;justify-content:space-between;gap:12px;font-size:8pt;color:#645c50}
+.cert{width:100%;max-width:190mm;margin:0 auto;background:#fff;border:3px solid #12294a;padding:0}
+.cert .inner{border:1px solid #c9922f;margin:5mm;padding:14mm 12mm;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5mm;min-height:238mm}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="top">
+    <div class="blob"></div>
+    <div class="row">
+      <img src="assets/logo.png" alt="">
+      <div style="min-width:0">
+        <div class="brand-name">Deaf and Envision School</div>
+        <div class="brand-sub">गूँगे बहारों का विद्यालय · Est. 1954</div>
+      </div>
+    </div>
+    <div class="chipline">
+      <span class="chip-gold">Ganpati Mahotsav 2026</span>
+      <span class="chip-ghost" id="roleChip">Entry gate</span>
+      <button class="chip-who" id="whoBtn" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
+        <span id="whoName">—</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- SETUP -->
+    <section class="view" id="v-setup">
+      <h1 style="font-size:24px;color:var(--navy)">Set up this phone</h1>
+      <div class="note sand">One-time. Your name is printed on the slips you issue and counted in your day's total.</div>
+      <div class="field">
+        <label>Your name</label>
+        <input class="input" id="setName" placeholder="e.g. Rohit — Entry Gate" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>What is this phone for?</label>
+        <div class="pills" id="setRole">
+          <button class="pill grow on" data-v="gate" type="button">Entry gate</button>
+          <button class="pill grow" data-v="control" type="button">Main control</button>
+        </div>
+      </div>
+      <div class="field" id="pinField" style="display:none">
+        <label>Control PIN</label>
+        <input class="input mono" id="setPin" inputmode="numeric" placeholder="4 digits" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="setSave" type="button">Start using the app</button>
+      <div class="note navy">Put your own name in — it is printed on every slip you issue. Entries you save wait for Srajan Mishra's approval before a voucher code or pass is issued.</div>
+    </section>
+
+    <!-- HOME -->
+    <section class="view" id="v-home">
+      <div class="stats">
+        <div class="stat"><div class="k">Slips today</div><div class="v" id="hCount">—</div></div>
+        <div class="stat wide"><div class="k">Collected today</div><div class="v" id="hTotal">—</div></div>
+      </div>
+      <div class="sync">
+        <span class="dot" id="syncDot"></span><span id="syncMsg">Loading the ledger…</span>
+        <button type="button" id="refreshBtn">Refresh</button>
+      </div>
+      <button class="note clay" id="pendingBanner" type="button" style="display:none;border:0;width:100%;text-align:left;font-weight:700;min-height:48px">—</button>
+
+      <div class="pick">
+        <button type="button" data-start="online">
+          <span class="ic" style="background:var(--sage-bg)"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#3d472b"><rect x="3" y="4" width="18" height="14" rx="2.5"/><path d="M3 9h18M7 14h4"/></svg></span>
+          <span class="txt"><span class="t">Paid online</span><span class="s">Drop the payment screenshot — details are read for you, then you check them.</span></span>
+        </button>
+        <button type="button" data-start="cash">
+          <span class="ic" style="background:var(--clay-bg)"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#643312"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.75"/></svg></span>
+          <span class="txt"><span class="t">Cash received</span><span class="s">Enter the details, and take a photo of the donor as proof if you want one.</span></span>
+        </button>
+        <button type="button" data-start="expense">
+          <span class="ic" style="background:var(--sand)"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#645c50"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9.5 8.5h5M9.5 12.5h5"/></svg></span>
+          <span class="txt"><span class="t">Record an expense</span><span class="s">What was paid out, to whom, with the bill photographed.</span></span>
+        </button>
+        <button type="button" data-start="comp" id="pickComp" style="display:none">
+          <span class="ic" style="background:#ffe9bd"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#6b4a06"><path d="M4 9.5h16v10H4z"/><path d="M3 5.5h18v4H3zM12 5.5v14"/><path d="M12 5.5c-2.5-3.5-6-1-4 1M12 5.5c2.5-3.5 6-1 4 1"/></svg></span>
+          <span class="txt"><span class="t">Invitee pass</span><span class="s">Free entry for a guest, performer or the press. No payment, no receipt.</span></span>
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div class="eyebrow">Newest entries</div>
+        <button type="button" data-go="ledger" style="background:none;border:0;font-size:12.5px;font-weight:700;color:var(--gold)">See all</button>
+      </div>
+      <div class="card" id="homeList"><div class="empty">No slips yet today.</div></div>
+    </section>
+
+    <!-- DONATION FORM (online + cash) -->
+    <section class="view" id="v-form">
+      <button class="btn-quiet" data-go="home" type="button">← Back</button>
+      <h1 style="font-size:24px;color:var(--navy)" id="formHead">New donation</h1>
+
+      <div id="shotBlock">
+        <button class="drop" id="drop" type="button">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12294a" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 16v3.5h16V16"/></svg>
+          <span class="t">Drop the payment screenshot</span>
+          <span class="s">Or tap to choose it. The amount, reference and name are read out of it — you check them before saving.</span>
+        </button>
+        <input type="file" id="file" accept="image/*" style="display:none">
+        <div class="shot" id="shotPrev" style="display:none;margin-top:12px"><img id="shotImg" alt=""><button type="button" id="shotClear">×</button></div>
+        <div class="note sand" id="ocrMsg" style="display:none;margin-top:12px">—</div>
+      </div>
+
+      <div class="field">
+        <label>Donor name</label>
+        <input class="input" id="fDonor" placeholder="Full name as it should print" autocomplete="off">
+      </div>
+      <div class="two">
+        <div class="field" style="flex:1.2">
+          <label>Amount</label>
+          <div class="money-wrap"><span>₹</span><input id="fAmount" inputmode="numeric" placeholder="0"></div>
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input class="input" id="fPhone" inputmode="tel" placeholder="98xxxxxxxx">
+        </div>
+      </div>
+      <div class="field">
+        <label id="fRefLabel">UPI / bank reference</label>
+        <input class="input mono" id="fRef" placeholder="UTR or transaction id" autocapitalize="characters" autocorrect="off">
+      </div>
+
+      <div id="cashPhotoBlock" style="display:none">
+        <div class="field">
+          <label>Photo of the donor (optional)</label>
+          <button class="drop" id="camBtn" type="button" style="padding:18px">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#12294a" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            <span class="t">Take a photo</span>
+            <span class="s">Proof of who handed over the cash. Seen only on the approval screen — never printed.</span>
+          </button>
+          <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
+          <div class="shot" id="camPrev" style="display:none;margin-top:12px"><img id="camImg" alt=""><button type="button" id="camClear">×</button></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Allocated to</label>
+        <div class="pills" id="fAlloc"></div>
+      </div>
+      <div class="field">
+        <label>Coming to the event?</label>
+        <div class="pills" id="fAttend">
+          <button class="pill grow on" data-v="yes" type="button">Yes — issue pass</button>
+          <button class="pill grow" data-v="no" type="button">No</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="saveBtn" type="button">Save &amp; send for approval</button>
+      <div class="note sand" id="tierHint">Entry ₹1–2,000 · 1 guest. Supporter ₹2,001–2,499 · 2 guests. Donor ₹2,500+ · 8 guests. Patron ₹25,000+ · 16 guests.</div>
+    </section>
+
+    <!-- EXPENSE FORM -->
+    <section class="view" id="v-expense">
+      <button class="btn-quiet" data-go="home" type="button">← Back</button>
+      <h1 style="font-size:24px;color:var(--navy)">Record an expense</h1>
+      <div class="two">
+        <div class="field">
+          <label>Date</label>
+          <input class="input" id="xDate" type="date">
+        </div>
+        <div class="field" style="flex:1.2">
+          <label>Amount</label>
+          <div class="money-wrap"><span>₹</span><input id="xAmount" inputmode="numeric" placeholder="0"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Paid to</label>
+        <input class="input" id="xPayee" placeholder="Vendor or person" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <div class="pills" id="xCat"></div>
+      </div>
+      <div class="field" id="xNoteField" style="display:none">
+        <label id="xNoteLabel">Name</label>
+        <input class="input" id="xNote" placeholder="Which one?" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Paid by</label>
+        <div class="pills" id="xMode">
+          <button class="pill grow on" data-v="cash" type="button">Cash</button>
+          <button class="pill grow" data-v="upi" type="button">UPI</button>
+          <button class="pill grow" data-v="bank" type="button">Bank</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Bill or receipt</label>
+        <button class="drop" id="billBtn" type="button" style="padding:18px">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#12294a" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9.5 9h5M9.5 13h5"/></svg>
+          <span class="t">Photograph or upload the bill</span>
+          <span class="s">Stored in your Drive and linked from the sheet.</span>
+        </button>
+        <input type="file" id="billFile" accept="image/*" style="display:none">
+        <div class="shot" id="billPrev" style="display:none;margin-top:12px"><img id="billImg" alt=""><button type="button" id="billClear">×</button></div>
+      </div>
+      <button class="btn btn-primary" id="xSave" type="button">Save &amp; send for approval</button>
+    </section>
+
+    <!-- COMPLIMENTARY PASS -->
+    <section class="view" id="v-comp">
+      <button class="btn-quiet" data-go="home" type="button">← Back</button>
+      <h1 style="font-size:24px;color:var(--navy)">Invitee pass</h1>
+      <div class="note sand">Free entry. No amount, no receipt, no certificate — a pass with a QR the gate honours. Issued the moment you save it.</div>
+      <div class="field">
+        <label>Name on the pass</label>
+        <input class="input" id="cName" placeholder="Who it is for" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Kind of pass</label>
+        <div class="pills" id="cKind"></div>
+      </div>
+      <div class="field">
+        <label>People it admits</label>
+        <div class="step"><button type="button" id="cMinus">−</button><span id="cNum">1</span><button type="button" id="cPlus">+</button></div>
+      </div>
+      <div class="field">
+        <label>Invited by</label>
+        <input class="input" id="cBy" placeholder="Who invited them" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="cSave" type="button">Issue the pass</button>
+    </section>
+
+    <!-- APPROVALS -->
+    <section class="view" id="v-approve">
+      <h1 style="font-size:24px;color:var(--navy)">Awaiting your approval</h1>
+      <div class="note sand">Nothing is valid until you approve it. Approving assigns the voucher number and releases the pass.</div>
+      <div class="stats">
+        <div class="stat"><div class="k">Pending</div><div class="v" id="aCount">—</div></div>
+        <div class="stat wide"><div class="k">Value held</div><div class="v" id="aTotal">—</div></div>
+      </div>
+      <div id="approveList" style="display:flex;flex-direction:column;gap:12px"></div>
+    </section>
+
+    <!-- SLIP -->
+    <section class="view" id="v-slip">
+      <button class="btn-quiet" data-go="home" type="button">← Home</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="ok-dot" id="okDot"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h1 style="font-size:22px;color:var(--navy)" id="slipHead">Slip saved</h1>
+      </div>
+      <div class="note clay" id="sState" style="display:none">—</div>
+      <div class="slip-card">
+        <div class="slip-top">
+          <div style="min-width:0">
+            <div style="font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)">Voucher number</div>
+            <div class="mono" id="sCode" style="font-size:13px;font-weight:700;color:var(--navy);overflow-wrap:anywhere">—</div>
+          </div>
+          <img src="assets/logo.png" alt="" style="width:40px;height:40px;border-radius:999px;flex:none">
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0 2px">
+          <div style="min-width:0">
+            <div style="font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)">Donor</div>
+            <div style="font-size:15px;font-weight:700" id="sDonor">—</div>
+            <div style="font-size:12px;color:var(--ink-2)" id="sAlloc">—</div>
+          </div>
+          <div style="text-align:right;flex:none">
+            <div style="font-family:'Caprasimo',Georgia,serif;font-size:24px;color:var(--navy);line-height:1.15" id="sAmount">—</div>
+            <span class="tag" id="sMode">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="note sand" id="sThanks">—</div>
+      <div id="passBlock"></div>
+      <div class="note navy"><b>Important</b> — We have applied for 80G and 12A registration.</div>
+      <div id="approveHere" style="display:none">
+        <div class="btn-row">
+          <button class="btn btn-primary" id="okBtn" type="button">Approve</button>
+          <button class="btn btn-out" id="noBtn" type="button" style="color:var(--clay);border-color:var(--clay)">Reject</button>
+        </div>
+      </div>
+      <div id="outRow" style="display:none;flex-direction:column;gap:10px">
+        <div class="btn-row">
+          <button class="btn btn-navy" id="printBtn" type="button">Receipt</button>
+          <button class="btn btn-navy" id="certBtn" type="button">Certificate</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-out" id="shareBtn" type="button">Share</button>
+          <button class="btn btn-out" id="againBtn" type="button">Next donor</button>
+        </div>
+      </div>
+      <button class="btn-quiet" id="voidBtn" type="button" style="color:var(--clay);align-self:center;display:none">Void this slip</button>
+    </section>
+
+    <!-- SCAN / GATE -->
+    <section class="view" id="v-scan">
+      <h1 style="font-size:24px;color:var(--navy)">Gate entry</h1>
+      <div class="note sand">Point the phone's own Camera app at the QR and it opens the check page. Or scan here, or type the last six characters.</div>
+      <div id="camWrap" style="display:none"><video id="cam" playsinline muted></video></div>
+      <div class="btn-row">
+        <button class="btn btn-navy" id="scanStart" type="button">Scan a QR</button>
+        <button class="btn btn-out" id="scanStop" type="button" style="display:none">Stop</button>
+      </div>
+      <div class="field">
+        <label>Or type the last six characters</label>
+        <input class="input mono" id="scanCode" placeholder="A7F3K9" autocapitalize="characters" autocorrect="off" maxlength="6">
+      </div>
+      <button class="btn btn-primary" id="scanGo" type="button">Check this pass</button>
+      <div id="scanResult"></div>
+      <div class="eyebrow">Recent entries</div>
+      <div class="card" id="entryList"><div class="empty">No one has come in yet.</div></div>
+    </section>
+
+    <!-- LEDGER -->
+    <section class="view" id="v-ledger">
+      <h1 style="font-size:24px;color:var(--navy)">Ledger</h1>
+      <div class="pills" id="lKind">
+        <button class="pill grow on" data-v="slips" type="button">Donations</button>
+        <button class="pill grow" data-v="expenses" type="button">Expenses</button>
+      </div>
+      <div class="search">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#82796a" stroke-width="2.75" stroke-linecap="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        <input id="q" placeholder="Name, number, reference…" autocapitalize="off">
+      </div>
+      <div class="pills" id="lFilter">
+        <button class="pill on" data-v="all" type="button">All</button>
+        <button class="pill" data-v="today" type="button">Today</button>
+        <button class="pill" data-v="online" type="button">Online</button>
+        <button class="pill" data-v="cash" type="button">Cash</button>
+        <button class="pill" data-v="pending" type="button">Pending</button>
+        <button class="pill" data-v="mine" type="button">Mine</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k">Records shown</div><div class="v" id="lCount">—</div></div>
+        <div class="stat wide"><div class="k">Total shown</div><div class="v" id="lTotal">—</div></div>
+      </div>
+      <div class="card" id="ledgerList"><div class="empty">Loading…</div></div>
+      <div class="btn-row">
+        <button class="btn btn-out" id="batchBtn" type="button" style="font-size:15px">Receipts PDF</button>
+        <button class="btn btn-out" id="certAllBtn" type="button" style="font-size:15px">Certificates PDF</button>
+      </div>
+      <button class="btn-quiet" id="reconfig" type="button" style="align-self:center;color:var(--ink-2)">Change name or role</button>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <div class="wrap">
+      <button type="button" data-tab="home" class="on">
+        <svg width="21" height="21" viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V20H4z"/></svg>Home</button>
+      <button type="button" data-tab="approve" id="tabApprove" style="display:none">
+        <svg width="21" height="21" viewBox="0 0 24 24"><path d="M20 6.5L9.5 17.5 4 12"/></svg>Approve
+        <span class="badge" id="tabBadge" style="display:none">0</span></button>
+      <button type="button" data-tab="scan">
+        <svg width="21" height="21" viewBox="0 0 24 24"><path d="M4 8.5V4h4.5M20 8.5V4h-4.5M4 15.5V20h4.5M20 15.5V20h-4.5"/><path d="M7.5 12h9"/></svg>Gate</button>
+      <button type="button" data-tab="ledger">
+        <svg width="21" height="21" viewBox="0 0 24 24"><path d="M5 3.5h14v17H5z"/><path d="M8.5 9h7M8.5 13.5h7M8.5 18h4"/></svg>Ledger</button>
+    </div>
+  </nav>
+</div>
+
+<div id="print-root"></div>
+<script src="app.js"></script>
+</body>
+</html>

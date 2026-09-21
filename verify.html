@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gate check — Ganpati Mahotsav 2026</title>
+<meta name="theme-color" content="#12294a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#12294a;--navy-d:#0b1b30;--gold:#c9922f;--gold-l:#e8c46a;--bg:#f5ead8;--surface:#fffaf1;
+ --sand:#ebddc5;--ink:#201e1d;--ink-2:#645c50;--ink-3:#82796a;--sage:#7a8a5e;--sage-bg:#e1eecc;
+ --sage-ink:#3d472b;--clay:#8c491a;--clay-bg:#ffe1d0;--clay-ink:#643312;--sh:0 1px 2px rgba(46,43,37,.14);
+ --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Figtree",system-ui,sans-serif;font-size:16px;line-height:1.45}
+h1{font-family:"Caprasimo",Georgia,serif;font-weight:400;margin:0;line-height:1.12}
+a{color:var(--navy)}a:hover{color:var(--gold)}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input{font-family:inherit;font-size:16px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.wrap{max-width:460px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+header{background:linear-gradient(170deg,var(--navy),var(--navy-d));padding:calc(var(--safe-t) + 16px) 18px 18px;
+ border-radius:0 0 26px 26px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden}
+header .blob{position:absolute;right:-56px;top:-46px;width:170px;height:170px;border-radius:999px;background:rgba(201,146,47,.16)}
+header img{width:42px;height:42px;border-radius:999px;background:var(--bg);flex:none;position:relative}
+header .n{font-family:"Caprasimo",Georgia,serif;font-size:16px;color:#fff;line-height:1.15;position:relative}
+header .s{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-l);position:relative}
+main{flex:1;padding:18px 16px calc(28px + var(--safe-b));display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border-radius:20px;box-shadow:var(--sh);padding:18px}
+.note{border-radius:16px;padding:14px 16px;font-size:13.5px;line-height:1.5}
+.note.clay{background:var(--clay-bg);color:var(--clay-ink)}
+.note.sage{background:var(--sage-bg);color:var(--sage-ink)}
+.note.sand{background:var(--sand);color:var(--ink)}
+.k{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.stats{display:flex;gap:10px}
+.stat{flex:1;background:var(--bg);border-radius:14px;padding:12px}
+.stat .v{font-family:"Caprasimo",Georgia,serif;font-size:27px;color:var(--navy);line-height:1.1}
+.btn{width:100%;border:0;border-radius:999px;padding:16px;font-family:"Caprasimo",Georgia,serif;font-size:17px;min-height:54px}
+.btn-primary{background:var(--gold);color:var(--navy-d)}
+.btn-primary:active{background:#b2802a}
+.btn:disabled{opacity:.45}
+.btn-out{background:var(--surface);color:var(--navy);border:1px solid var(--navy)}
+.step{display:flex;align-items:center;border:1px solid rgba(32,30,29,.16);background:var(--surface);border-radius:999px;overflow:hidden;min-height:54px}
+.step button{background:none;border:0;width:54px;font-size:24px;color:var(--navy);min-height:52px}
+.step span{flex:1;text-align:center;font-family:"Caprasimo",Georgia,serif;font-size:23px;color:var(--navy)}
+.mono{font-family:ui-monospace,Menlo,monospace;letter-spacing:.03em}
+.chip{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy-d);
+ background:var(--gold-l);padding:5px 11px;border-radius:999px;flex:none}
+.input{width:100%;border:1px solid rgba(32,30,29,.16);background:var(--surface);border-radius:999px;padding:14px 17px;min-height:52px}
+.spin{width:22px;height:22px;border:3px solid rgba(18,41,74,.2);border-top-color:var(--navy);border-radius:999px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="blob"></div>
+    <img src="assets/logo.png" alt="">
+    <div>
+      <div class="n">Gate check</div>
+      <div class="s">Ganpati Mahotsav 2026</div>
+    </div>
+  </header>
+  <main id="main">
+    <div class="card" style="display:flex;align-items:center;gap:12px"><span class="spin"></span><span>Checking the pass…</span></div>
+  </main>
+</div>
+
+<script>
+var ENDPOINT = "https://script.google.com/macros/s/AKfycbynoSV0slMQS3Az6e01jEq0aUWtQ7yHI4PEDbkytbJHMi883lRzEg_kVzrvld5_GEMrlg/exec";
+var LSNAME = 'des_cfg_v2';
+var GATE_PIN = "2026";      // staff type this once per phone before they can admit
+var GATEKEY = 'des_gate_ok';
+
+var $ = function(s){ return document.querySelector(s); };
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function money(v){ return '₹' + (parseInt(String(v).replace(/[^0-9]/g,''),10)||0).toLocaleString('en-IN'); }
+function tail(c){ return String(c||'').split('/').pop(); }
+function tierName(n){ n = Number(n)||0; return n>=25000?'Patron':n>=2500?'Donor':n>2000?'Supporter':'Entry'; }
+function labelOf(r){ return r.mode === 'comp' ? (String(r.alloc||'Invitee') + ' · complimentary') : tierName(r.amount); }
+function who(){
+  try { return (JSON.parse(localStorage.getItem(LSNAME))||{}).volunteer || ''; } catch(e){ return ''; }
+}
+function staffOk(){
+  try { return localStorage.getItem(GATEKEY) === GATE_PIN; } catch(e){ return false; }
+}
+function askPin(){
+  var v = prompt('Gate staff PIN \u2014 asked once on this phone.');
+  if (v === null) return false;
+  if (String(v).trim() !== GATE_PIN) { alert('Wrong PIN. Ask Srajan Mishra.'); return false; }
+  try { localStorage.setItem(GATEKEY, GATE_PIN); } catch(e){}
+  return true;
+}
+function code(){
+  var m = location.search.match(/[?&]c=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function card(inner){ $('#main').innerHTML = inner; }
+
+function bad(msg, sub){
+  card('<div class="note clay"><b>' + esc(msg) + '</b>' + (sub ? '<br>' + esc(sub) : '') + '</div>'
+     + '<div class="card"><div class="k" style="margin-bottom:8px">Check another pass</div>'
+     + '<input class="input mono" id="manual" placeholder="Last six characters" maxlength="6" autocapitalize="characters" autocorrect="off">'
+     + '<button class="btn btn-out" id="go" style="margin-top:10px">Check</button></div>');
+  wireManual();
+}
+function wireManual(){
+  var g = $('#go'); if (!g) return;
+  g.addEventListener('click', function(){
+    var v = ($('#manual').value||'').trim().toUpperCase();
+    if (v) location.search = '?c=' + encodeURIComponent(v);
+  });
+}
+
+function render(r){
+  var allowed = Number(r.guestsAllowed) || 0;
+  var used = Number(r.guestsEntered) || 0;
+  var left = Math.max(0, allowed - used);
+
+  if (r.status !== 'live') {
+    bad('Not a valid pass', 'This record is marked ' + r.status + '. Do not admit.');
+    return;
+  }
+
+  card('<div class="card">'
+    + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'
+    +   '<div style="min-width:0"><div style="font-size:19px;font-weight:700">' + esc(r.donor||'—') + '</div>'
+    +     '<div class="mono" style="font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere">' + esc(r.code||'') + '</div></div>'
+    +   '<span class="chip">' + esc(labelOf(r)) + '</span></div>'
+    + '<div class="stats" style="margin-top:14px">'
+    +   '<div class="stat"><div class="k">Allowed</div><div class="v">' + allowed + '</div></div>'
+    +   '<div class="stat"><div class="k">Already in</div><div class="v">' + used + '</div></div>'
+    +   '<div class="stat"><div class="k">Left</div><div class="v" style="color:' + (left?'var(--sage-ink)':'var(--clay)') + '">' + left + '</div></div>'
+    + '</div></div>'
+    + (left
+        ? '<div class="card"><div class="k" style="margin-bottom:8px">How many are entering now?</div>'
+          + '<div class="step"><button type="button" id="m">\u2212</button><span id="n">' + Math.min(left,1) + '</span><button type="button" id="p">+</button></div>'
+          + '<button class="btn btn-primary" id="admit" style="margin-top:12px">Admit</button></div>'
+        : '<div class="note clay"><b>All ' + allowed + ' guests have already entered</b> on this pass. Do not admit more.</div>')
+    + '<div class="note sand">' + (r.mode === 'comp' ? 'Complimentary pass' : 'Donation ' + money(r.amount)) + ' · issued by ' + esc(r.approvedBy || 'Srajan Mishra') + '</div>');
+
+  if (!left) return;
+  var n = $('#n');
+  $('#m').addEventListener('click', function(){ n.textContent = Math.max(1, (parseInt(n.textContent,10)||1) - 1); });
+  $('#p').addEventListener('click', function(){ n.textContent = Math.min(left, (parseInt(n.textContent,10)||1) + 1); });
+  $('#admit').addEventListener('click', function(){
+    if (!staffOk() && !askPin()) return;
+    var count = parseInt(n.textContent,10) || 1, b = $('#admit');
+    b.disabled = true; b.textContent = 'Admitting…';
+    fetch(ENDPOINT, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'enter', code:r.code, count:count, by: who() || 'Gate'})})
+      .then(function(x){ return x.json(); })
+      .then(function(d){
+        if (!d.ok) throw new Error(d.error || 'Refused');
+        card('<div class="note sage" style="font-size:16px"><b>' + count + ' guest' + (count===1?'':'s') + ' admitted.</b><br>'
+          + esc(r.donor||'') + ' — ' + d.entered + ' of ' + d.allowed + ' now in.</div>'
+          + '<div class="card"><div class="k" style="margin-bottom:8px">Next pass</div>'
+          + '<input class="input mono" id="manual" placeholder="Last six characters" maxlength="6" autocapitalize="characters" autocorrect="off">'
+          + '<button class="btn btn-out" id="go" style="margin-top:10px">Check</button></div>');
+        wireManual();
+      })
+      .catch(function(e){ b.disabled = false; b.textContent = 'Admit'; alert('Not admitted.\n\n' + e.message); });
+  });
+}
+
+var c = code();
+if (!c) {
+  bad('No pass scanned', 'Point the camera at the QR on a pass, or type the last six characters.');
+} else {
+  fetch(ENDPOINT + '?action=verify&code=' + encodeURIComponent(c) + '&t=' + Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) { render(d.row); return; }
+      if (c.indexOf('/') < 0) {
+        return fetch(ENDPOINT + '?action=list&t=' + Date.now()).then(function(r){ return r.json(); }).then(function(l){
+          var hit = (l.rows||[]).filter(function(x){ return tail(x.code).toUpperCase() === c.toUpperCase(); })[0];
+          if (hit) render(hit); else bad('Pass not found', 'Nothing matches ' + c + '.');
+        });
+      }
+      bad('Pass not found', d.error || '');
+    })
+    .catch(function(e){ bad('Could not reach the ledger', e.message); });
+}
+</script>
+</body>
+</html>
