@@ -506,9 +506,16 @@ function takeShot(file){
       if (p.ref) got.push('reference ' + p.ref);
       if (p.donor) got.push('name ' + p.donor);
       $('#ocrMsg').className = 'note ' + (p.confidence === 'high' ? 'sage' : 'sand');
-      $('#ocrMsg').innerHTML = got.length
+      var tail = ' <button type="button" id="ocrRaw" style="background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--navy);text-decoration:underline">what it read</button>';
+      $('#ocrMsg').innerHTML = (got.length
         ? 'Read ' + esc(got.join(', ')) + '. <b>Check every field before saving.</b>'
-        : 'Could not make out the details. Type them in — the screenshot is still saved as proof.';
+        : 'Could not make out the details' + (p.chars ? '' : ' — no text came back at all') + '. Type them in; the screenshot is still saved as proof.')
+        + tail;
+      $('#ocrMsg').innerHTML += '<div style="font-size:11.5px;margin-top:6px;color:var(--ink-2)">The donor\'s name is almost never in a payment screenshot \u2014 type it in.</div>';
+      var rb = document.getElementById('ocrRaw');
+      if (rb) rb.addEventListener('click', function(){
+        alert((p.chars || 0) + ' characters read from the image:\n\n' + (p.raw || '(nothing)'));
+      });
     }).catch(function(e){
       $('#ocrMsg').className = 'note clay';
       $('#ocrMsg').textContent = 'Could not read it (' + e.message + '). Type the details in — the screenshot is still saved as proof.';
