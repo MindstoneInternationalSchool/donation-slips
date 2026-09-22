@@ -497,6 +497,8 @@ function saveComp(){
 function startFlow(kind){
   if (kind === 'comp') { if (!isControl()) return; resetComp(); show('comp'); return; }
   if (kind === 'group') { if (!isControl()) return; resetGroup(); show('group'); return; }
+  if (kind === 'bank') { if (!isControl()) return; resetBank(); show('bank'); return; }
+  if (kind === 'vip') { if (!isControl()) return; resetVip(); show('vip'); return; }
   if (kind === 'expense') { resetExpense(); show('expense'); return; }
   state.mode = kind;
   resetForm();
@@ -906,6 +908,300 @@ $('#batchBtn').addEventListener('click', function(){
 $('#certAllBtn').addEventListener('click', function(){
   printThese(printable(filtered()).map(certHTML).join(''), 'Certificates');
 });
+/* Reads "1,234.50" / "\u20b950.00" / "50" as a number of rupees.
+   num() strips the decimal point, which turns 50.00 into 5000 \u2014 never use
+   it on a figure that came out of a file. */
+function money2(v){
+  var s = String(v == null ? '' : v).replace(/[^0-9.\-]/g, '');
+  var n = parseFloat(s);
+  if (!isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+/* ---------- high profile guest invitation ---------- */
+var vipState = {hon:'Shri', lead:'In the gracious presence of', img:null, blob:null, busy:false};
+
+/* the blank ornate panel on the flyer, as fractions of the artwork */
+var VIP_PANEL = {x:0.068, y:0.664, w:0.864, h:0.117};
+
+function fitFont(c, text, weight, family, start, max, min){
+  var size = start;
+  do {
+    c.font = weight + ' ' + size + 'px ' + family;
+    if (c.measureText(text).width <= max) break;
+    size -= 2;
+  } while (size > min);
+  return size;
+}
+async function inviteCanvas(){
+  if (!vipState.img) vipState.img = await loadImg('assets/flyer.png');
+  var img = vipState.img, W = img.width, H = img.height;
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  var c = cv.getContext('2d');
+  c.drawImage(img, 0, 0);
+
+  var px = VIP_PANEL.x * W, py = VIP_PANEL.y * H,
+      pw = VIP_PANEL.w * W, ph = VIP_PANEL.h * H;
+
+  /* mask whatever ghost text sits in the panel, keeping the ornate border */
+  var inset = pw * 0.035;
+  var g = c.createLinearGradient(0, py, 0, py + ph);
+  g.addColorStop(0, '#3a1110'); g.addColorStop(0.5, '#4a1614'); g.addColorStop(1, '#3a1110');
+  c.fillStyle = g;
+  roundRect(c, px + inset, py + ph * 0.10, pw - inset * 2, ph * 0.80, ph * 0.12);
+  c.fill();
+
+  var name = [vipState.hon, ($('#vName').value || '').trim()].filter(Boolean).join(' ');
+  var role = ($('#vRole').value || '').trim();
+  var lead = vipState.lead;
+  var cx = px + pw / 2, maxW = pw * 0.84;
+
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+
+  var yName = py + ph * (lead ? 0.56 : 0.50);
+  if (lead) {
+    c.fillStyle = '#d7a45c';
+    c.font = '600 ' + Math.round(H * 0.0135) + 'px Figtree, sans-serif';
+    c.fillText(lead.toUpperCase(), cx, py + ph * 0.28);
+  }
+  if (name) {
+    var ns = fitFont(c, name, '400', "'Caprasimo', Georgia, serif", Math.round(H * 0.033), maxW, 18);
+    c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = 8;
+    c.fillStyle = '#f2b74c';
+    c.font = '400 ' + ns + "px 'Caprasimo', Georgia, serif";
+    c.fillText(name, cx, yName);
+    c.shadowBlur = 0;
+  }
+  if (role) {
+    var rs = fitFont(c, role, '600', 'Figtree, sans-serif', Math.round(H * 0.0165), maxW, 11);
+    c.fillStyle = '#e8d7b4';
+    c.font = '600 ' + rs + 'px Figtree, sans-serif';
+    c.fillText(role, cx, py + ph * (lead ? 0.80 : 0.74));
+  }
+  c.textAlign = 'left';
+  return cv;
+}
+var vipTimer = null;
+function refreshInvite(){
+  clearTimeout(vipTimer);
+  vipTimer = setTimeout(function(){
+    if (vipState.busy) return;
+    vipState.busy = true;
+    inviteCanvas().then(function(cv){
+      $('#vPreview').innerHTML = '<img src="' + cv.toDataURL('image/jpeg', 0.86)
+        + '" alt="Invitation preview" style="width:100%;display:block">';
+      return toBlob(cv);                       /* full-quality PNG for print and sharing */
+    }).then(function(b){
+      vipState.blob = b;
+    }).catch(function(e){
+      $('#vPreview').innerHTML = '<div class="note clay">Could not draw the invitation. ' + esc(e.message||'') + '</div>';
+    }).then(function(){ vipState.busy = false; });
+  }, 220);
+}
+function resetVip(){
+  $('#vName').value = ''; $('#vRole').value = ''; $('#vPhone').value = '';
+  vipState.hon = 'Shri'; vipState.lead = 'In the gracious presence of';
+  paintPills($('#vHon'), 'Shri'); paintPills($('#vLead'), vipState.lead);
+  refreshInvite();
+}
+function inviteName(){
+  return ([vipState.hon, ($('#vName').value||'').trim()].filter(Boolean).join(' ') || 'guest');
+}
+function printInvite(){
+  if (!vipState.blob) { alert('The invitation is still drawing \u2014 try again in a moment.'); return; }
+  var url = URL.createObjectURL(vipState.blob);
+  printThese('<div class="sheet" style="border:0;background:none">'
+    + '<img src="' + url + '" style="width:100%;display:block">'
+    + '</div>', 'Invitation ' + inviteName());
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 30000);
+}
+async function sendInvite(){
+  var btn = $('#vSend');
+  if (!vipState.blob) { alert('The invitation is still drawing \u2014 try again in a moment.'); return; }
+  var label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing\u2026';
+  try {
+    var f = new File([vipState.blob], 'invitation.png', {type:'image/png'});
+    var role = ($('#vRole').value||'').trim();
+    var txt = 'Deaf and Envision School, Kanpur\n\nRespected ' + inviteName()
+      + (role ? ', ' + role : '') + ',\n\nWe would be honoured by your presence at Ganpati Mahotsav 2026 '
+      + 'on 24 September 2026, 6:00 PM onwards, at Deaf and Envision School, Saket Nagar, Kanpur.';
+    if (navigator.canShare && navigator.canShare({files:[f]})) {
+      await navigator.share({files:[f], text:txt});
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(f); a.download = 'invitation-' + inviteName().replace(/\s+/g,'-') + '.png'; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    window.open('https://wa.me/' + waNumber($('#vPhone').value) + '?text=' + encodeURIComponent(txt), '_blank');
+  } catch(e) {
+    if (!e || e.name !== 'AbortError') alert('Could not prepare it. ' + (e && e.message ? e.message : ''));
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
+/* ---------- bank statement import ---------- */
+var bkState = {items:[]};
+
+/* "UPI/SUNDRAM LOHIYA/HDFC/215397886148/Sent using P" -> "SUNDRAM LOHIYA" */
+function payerFromDesc(d){
+  var s = String(d||'').trim();
+  if (!s) return '';
+  var parts = s.split('/').map(function(x){ return x.trim(); }).filter(Boolean);
+  if (parts.length > 1) {
+    for (var i = 1; i < parts.length; i++) {
+      var p = parts[i];
+      if (/^[A-Za-z][A-Za-z .]{2,}$/.test(p) && !/^(upi|neft|imps|rtgs|na)$/i.test(p)) return p.replace(/\s+/g,' ');
+    }
+  }
+  var m = s.match(/(?:from|by)\s+([A-Za-z][A-Za-z .]{2,40})/i);
+  return m ? m[1].replace(/\s+/g,' ').trim() : '';
+}
+function titleCase(s){
+  return String(s||'').toLowerCase().split(' ').filter(Boolean).map(function(w){
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(' ');
+}
+function parseBank(text){
+  var grid = csvRows(text);
+  if (!grid.length) return [];
+  /* the header is the first row that names an amount column */
+  var hi = -1;
+  for (var i = 0; i < Math.min(grid.length, 15); i++) {
+    var joined = grid[i].join(' ').toLowerCase();
+    if (/amount|credit|deposit/.test(joined) && /date|description|narration|particular/.test(joined)) { hi = i; break; }
+  }
+  if (hi === -1) return [];
+  var head = grid[hi];
+  var iDesc = pickCol(head, ['description','narration','particular','remark','details']);
+  var iAmt  = pickCol(head, ['amount','credit','deposit']);
+  var iRef  = pickCol(head, ['chqref','refno','reference','chq','utr','transactionid']);
+  var iDate = pickCol(head, ['transactiondate','valuedate','date']);
+  var iDrCr = pickCol(head, ['drcr','type','crdr']);
+  if (iAmt === -1) return [];
+
+  var out = [];
+  grid.slice(hi + 1).forEach(function(r){
+    var amt = money2(r[iAmt]);
+    if (!amt) return;
+    if (iDrCr > -1) {
+      var dc = String(r[iDrCr]||'').trim().toUpperCase();
+      if (dc && dc.indexOf('CR') === -1) return;        /* debits are not donations */
+    }
+    var desc = iDesc > -1 ? String(r[iDesc]||'') : '';
+    var nm = payerFromDesc(desc);
+    var when = iDate > -1 ? String(r[iDate]||'').trim() : '';
+    var iso = new Date().toISOString();
+    var dm = when.match(/^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/);
+    if (dm) {
+      var d = new Date(+dm[3], +dm[2]-1, +dm[1], +(dm[4]||12), +(dm[5]||0), +(dm[6]||0));
+      if (!isNaN(d)) iso = d.toISOString();
+    }
+    out.push({
+      donor: titleCase(nm), amount: amt, mode: 'online',
+      ref: String(iRef > -1 ? (r[iRef]||'') : '').trim(),
+      ts: iso, alloc: 'General Fund', attend: 'yes',
+      short: nm.length >= 13 && !/\s[A-Za-z]{3,}$/.test(nm),   /* bank cut it off */
+      desc: desc
+    });
+  });
+  return out;
+}
+function renderBankPreview(){
+  var list = bkState.items, host = $('#bkPreview');
+  if (!list.length) { host.innerHTML = ''; $('#bkGo').style.display = 'none'; return; }
+  var total = list.reduce(function(s,x){ return s + Number(x.amount||0); }, 0);
+  var noName = list.filter(function(x){ return !x.donor; }).length;
+  var cut = list.filter(function(x){ return x.short; }).length;
+  host.innerHTML = '<div class="card" style="padding:14px 15px;margin:12px 0">'
+    + '<div class="stats"><div class="stat"><div class="k">Credits</div><div class="v">' + list.length + '</div></div>'
+    +   '<div class="stat wide"><div class="k">Total</div><div class="v">' + money(total) + '</div></div></div>'
+    + (cut || noName
+        ? '<div class="note clay" style="margin-top:10px;font-size:11.5px">'
+          + (cut ? cut + ' name' + (cut===1?'':'s') + ' look cut off by the bank. ' : '')
+          + (noName ? noName + ' row' + (noName===1?'':'s') + ' had no readable name. ' : '')
+          + 'They import as they are \u2014 fix them in the Sheet afterwards.</div>'
+        : '')
+    + '<div style="margin-top:10px;max-height:260px;overflow:auto">'
+    + list.map(function(x, i){
+        return '<div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(32,30,29,.07)">'
+          + '<span style="font-size:11px;color:var(--ink-3);width:24px;flex:none">' + (i+1) + '</span>'
+          + '<span style="flex:1;min-width:0;font-size:13.5px">' + esc(x.donor || '\u2014 no name \u2014')
+          +   (x.short ? '<span style="color:var(--clay)">\u2026</span>' : '') + '</span>'
+          + '<span style="font-size:13px;font-weight:700;color:var(--navy);flex:none">' + money(x.amount) + '</span>'
+          + '</div>';
+      }).join('')
+    + '</div></div>';
+  $('#bkGo').style.display = 'block';
+  $('#bkGo').textContent = 'Import ' + list.length + ' as pending donations';
+}
+function readBankFile(f){
+  if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){
+    bkState.items = parseBank(rd.result);
+    $('#bkDropMsg').textContent = bkState.items.length
+      ? f.name + ' \u2014 ' + bkState.items.length + ' credits found'
+      : 'No credits found in ' + f.name;
+    if (!bkState.items.length) {
+      $('#bkPreview').innerHTML = '<div class="note clay" style="margin-top:12px">Could not read that file. It needs a header row naming a date, a description and an amount \u2014 the CSV your bank exports usually has one.</div>';
+      $('#bkGo').style.display = 'none';
+      return;
+    }
+    renderBankPreview();
+  };
+  rd.readAsText(f);
+}
+function importBank(){
+  if (!bkState.items.length) return;
+  var btn = $('#bkGo');
+  btn.disabled = true; btn.textContent = 'Importing\u2026';
+  push({action:'addBulk', items:bkState.items, volunteer:cfg.volunteer})
+    .then(function(d){
+      (d.rows||[]).forEach(function(r){ rows.unshift(r); });
+      cacheAll(); paintAll();
+      bkState.items = []; $('#bkPreview').innerHTML = '';
+      $('#bkDropMsg').textContent = 'Drop the bank CSV here, or tap to choose';
+      btn.style.display = 'none';
+      setSync('ok', d.added + ' imported' + (d.skipped ? ', ' + d.skipped + ' already in the ledger' : ''));
+      alert(d.added + ' donations imported as pending.'
+        + (d.skipped ? '\n\n' + d.skipped + ' were skipped \u2014 already in the ledger with the same reference.' : '')
+        + '\n\nGo to Approve to release them.');
+      show('approve');
+    })
+    .catch(function(e){
+      alert('Import failed.\n\n' + e.message);
+    })
+    .then(function(){ btn.disabled = false; renderBankPreview(); });
+}
+function resetBank(){
+  bkState.items = [];
+  $('#bkPreview').innerHTML = '';
+  $('#bkDropMsg').textContent = 'Drop the bank CSV here, or tap to choose';
+  $('#bkGo').style.display = 'none';
+}
+function approveAll(){
+  var p = pending().filter(function(r){ return !r.payee; });
+  if (!p.length) { alert('Nothing to approve.'); return; }
+  if (!confirm('Approve all ' + p.length + ' pending donations?\n\nEach gets its number and pass. Expenses and groups are not included.')) return;
+  var btn = $('#approveAll');
+  btn.disabled = true; btn.textContent = 'Approving ' + p.length + '\u2026';
+  push({action:'approveAll', ids:p.map(function(r){ return r.id; }), approvedBy:cfg.volunteer})
+    .then(function(d){
+      (d.rows||[]).forEach(function(u){
+        var r = rows.filter(function(x){ return x.id === u.id; })[0];
+        if (r) { r.code = u.code; r.status = 'live'; r.approvedBy = u.approvedBy; r.approvedAt = u.approvedAt; }
+      });
+      cacheAll(); paintAll();
+      setSync('ok', d.approved + ' approved');
+    })
+    .catch(function(e){ alert('Could not approve them all.\n\n' + e.message); })
+    .then(function(){ btn.disabled = false; renderApprove(); });
+}
+
 /* ---------- college groups ---------- */
 function csvRows(text){
   var out = [], row = [], cell = '', q = false;
@@ -948,7 +1244,7 @@ function parseRoster(text){
       roll: String(iRoll > -1 ? (r[iRoll]||'') : '').trim(),
       course: String(iCourse > -1 ? (r[iCourse]||'') : '').trim(),
       phone: String(iPhone > -1 ? (r[iPhone]||'') : '').trim(),
-      amount: num(iAmt > -1 ? (r[iAmt]||0) : 0)
+      amount: money2(iAmt > -1 ? (r[iAmt]||0) : 0)
     };
     if (!st.name && !st.roll) return;
     var key = (st.name + '|' + st.roll).toLowerCase();
@@ -1476,6 +1772,34 @@ document.addEventListener('paste', function(e){
   }
 });
 
+/* high profile guest */
+$('#vHon').addEventListener('click', function(e){
+  var b = e.target.closest('.pill'); if(!b) return;
+  vipState.hon = b.dataset.v; paintPills($('#vHon'), vipState.hon); refreshInvite();
+});
+$('#vLead').addEventListener('click', function(e){
+  var b = e.target.closest('.pill'); if(!b) return;
+  vipState.lead = b.dataset.v; paintPills($('#vLead'), vipState.lead); refreshInvite();
+});
+$('#vName').addEventListener('input', refreshInvite);
+$('#vRole').addEventListener('input', refreshInvite);
+$('#vPrint').addEventListener('click', printInvite);
+$('#vSend').addEventListener('click', sendInvite);
+
+/* bank statement */
+$('#bkFile').addEventListener('change', function(e){ readBankFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(function(ev){
+  $('#bkDrop').addEventListener(ev, function(e){ e.preventDefault(); $('#bkDrop').classList.add('hot'); });
+});
+['dragleave','drop'].forEach(function(ev){
+  $('#bkDrop').addEventListener(ev, function(e){ e.preventDefault(); $('#bkDrop').classList.remove('hot'); });
+});
+$('#bkDrop').addEventListener('drop', function(e){
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) readBankFile(e.dataTransfer.files[0]);
+});
+$('#bkGo').addEventListener('click', importBank);
+$('#approveAll').addEventListener('click', approveAll);
+
 /* group */
 $('#grMode').addEventListener('click', function(e){
   var b = e.target.closest('.pill'); if(!b) return;
@@ -1543,6 +1867,8 @@ $('#setSave').addEventListener('click', function(){
 function applyRole(){
   $('#pickComp').style.display = isControl() ? 'flex' : 'none';
   $('#pickGroup').style.display = isControl() ? 'flex' : 'none';
+  $('#pickBank').style.display = isControl() ? 'flex' : 'none';
+  $('#pickVip').style.display = isControl() ? 'flex' : 'none';
   $('#tabApprove').style.display = isControl() ? 'flex' : 'none';
   $('#roleChip').textContent = isControl() ? 'Main control' : 'Entry gate';
   $('#whoName').textContent = (cfg.volunteer||'').split(/[\s—-]/)[0];
