@@ -258,6 +258,14 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
           <span class="ic" style="background:#dce9f5"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#12294a" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15 19a4.4 4.4 0 0 1 5.5-3.4"/></svg></span>
           <span class="txt"><span class="t">College group</span><span class="s">Upload the student list, one lump-sum receipt, one pass the gate ticks names off.</span></span>
         </button>
+        <button type="button" data-start="bank" id="pickBank" style="display:none">
+          <span class="ic" style="background:var(--sage-bg)"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#3d472b" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 4l9 5.5"/><path d="M5 9.5v9M9.5 9.5v9M14.5 9.5v9M19 9.5v9"/><path d="M3 20h18"/></svg></span>
+          <span class="txt"><span class="t">Bank statement</span><span class="s">Import many online donations at once from the bank's CSV, then approve them together.</span></span>
+        </button>
+        <button type="button" data-start="vip" id="pickVip" style="display:none">
+          <span class="ic" style="background:#f3e2c2"><svg width="24" height="24" viewBox="0 0 24 24" stroke="#6b4a06" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M4 18l-1-9 5 3.5L12 5l4 7.5L21 9l-1 9z"/></svg></span>
+          <span class="txt"><span class="t">High profile guest</span><span class="s">Print a personalised invitation with their name on the flyer.</span></span>
+        </button>
       </div>
 
       <div style="display:flex;align-items:baseline;justify-content:space-between">
@@ -407,6 +415,63 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
       <button class="btn btn-primary" id="cSave" type="button">Issue the pass</button>
     </section>
 
+    <!-- HIGH PROFILE GUEST INVITATION -->
+    <section class="view" id="v-vip">
+      <button class="btn-quiet" data-go="home" type="button">← Back</button>
+      <h1 style="font-size:24px;color:var(--navy)">High profile guest</h1>
+      <div class="note sand">The name prints into the blank panel on the flyer. For invitations only — nothing is recorded in the ledger.</div>
+      <div class="field">
+        <label>Honorific</label>
+        <div class="pills" id="vHon">
+          <button class="pill on" data-v="Shri" type="button">Shri</button>
+          <button class="pill" data-v="Smt." type="button">Smt.</button>
+          <button class="pill" data-v="Dr." type="button">Dr.</button>
+          <button class="pill" data-v="" type="button">None</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Name</label>
+        <input class="input" id="vName" placeholder="e.g. Rajesh Kumar Singh" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Designation</label>
+        <input class="input" id="vRole" placeholder="e.g. District Magistrate, Kanpur" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Line above the name</label>
+        <div class="pills" id="vLead">
+          <button class="pill on" data-v="In the gracious presence of" type="button">In the gracious presence of</button>
+          <button class="pill" data-v="Chief Guest" type="button">Chief Guest</button>
+          <button class="pill" data-v="Guest of Honour" type="button">Guest of Honour</button>
+          <button class="pill" data-v="" type="button">Nothing</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Phone (for WhatsApp)</label>
+        <input class="input" id="vPhone" inputmode="tel" placeholder="98xxxxxxxx" autocomplete="off">
+      </div>
+      <div id="vPreview" style="border-radius:16px;overflow:hidden;box-shadow:var(--sh-md)"></div>
+      <div class="btn-row">
+        <button class="btn btn-navy" id="vPrint" type="button">Print</button>
+        <button class="btn btn-out" id="vSend" type="button">Send on WhatsApp</button>
+      </div>
+    </section>
+
+    <!-- BANK STATEMENT -->
+    <section class="view" id="v-bank">
+      <button class="btn-quiet" data-go="home" type="button">← Back</button>
+      <h1 style="font-size:24px;color:var(--navy)">Bank statement</h1>
+      <div class="note sand">Every credit becomes its own pending donation. Nothing is valid until you approve — and you can approve the whole batch in one tap.</div>
+      <label for="bkFile" class="drop" id="bkDrop">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12294a" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 16v3.5h16V16"/></svg>
+        <span class="t" id="bkDropMsg">Drop the bank CSV here, or tap to choose</span>
+        <span class="s">Reads the payer's name out of the UPI description, with the amount, date and reference.</span>
+      </label>
+      <input type="file" id="bkFile" accept=".csv,text/csv,text/plain" style="display:none">
+      <div id="bkPreview"></div>
+      <button class="btn btn-primary" id="bkGo" type="button" style="display:none">Import as pending donations</button>
+    </section>
+
     <!-- COLLEGE GROUP -->
     <section class="view" id="v-group">
       <button class="btn-quiet" data-go="home" type="button">← Back</button>
@@ -466,6 +531,7 @@ nav.tabs svg{stroke-width:2.75;fill:none;stroke:currentColor;stroke-linecap:roun
         <div class="stat wide"><div class="k">Value held</div><div class="v" id="aTotal">—</div></div>
       </div>
       <div id="approveList" style="display:flex;flex-direction:column;gap:12px"></div>
+      <button class="btn btn-primary" id="approveAll" type="button" style="display:none">Approve all</button>
     </section>
 
     <!-- SLIP -->
